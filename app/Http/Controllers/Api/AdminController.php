@@ -196,4 +196,35 @@ class AdminController extends Controller
             return $this->error('Somethings Went Wrong', 500);
         }
     }
+    /**
+     * Get all blogs with pagination and filtering.
+     */
+    public function getAllBlogs(Request $request)
+    {
+        try {
+            $query = Blog::with(['author', 'category']);
+
+            if ($request->filled('status')) {
+                $query->where('status', $request->status);
+            }
+
+            if ($request->filled('category')) {
+                $query->where('category_id', $request->category);
+            }
+
+            if ($request->filled('search')) {
+                $search = $request->search;
+                $query->where(function ($q) use ($search) {
+                    $q->where('title', 'like', "%{$search}%")
+                        ->orWhere('content', 'like', "%{$search}%");
+                });
+            }
+
+            $blogs = $query->latest()->paginate($request->query('per_page', 20));
+            return $this->success('Successfully retrieve', $blogs->items(), true, $blogs);
+        } catch (\Throwable $th) {
+            Log::info($th->getMessage());
+            return $this->error('Somethings Went Wrong', 500);
+        }
+    }
 }

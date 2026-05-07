@@ -84,5 +84,8 @@ Route::group(['prefix' => 'admin', 'middleware' => ['auth:api', 'admin']], funct
     // Newsletter Management
     Route::get('/newsletter', [NewsletterController::class, 'index']);
 
+    // Blog Management
+    Route::get('/blogs', [AdminController::class, 'getAllBlogs']);
+
     // Add more admin routes here (e.g., manage settings)
 });
