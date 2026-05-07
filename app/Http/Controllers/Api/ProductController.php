@@ -104,22 +104,22 @@ class ProductController extends Controller
                 'category_id' => 'required|exists:categories,id',
                 'name' => 'required|string|max:255',
                 'sku' => 'nullable|string|unique:products,sku',
-                'thumbnail' => 'nullable|string',
+                'thumbnail' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
                 'description' => 'nullable|string',
                 'price' => 'required|numeric',
                 'offer_price' => 'nullable|numeric',
                 'stock' => 'nullable|integer|min:0',
                 'amenities' => 'nullable|array',
                 'variants' => 'nullable|array',
-                'variants.*.color_id' => 'required_with:variants|exists:colors,id',
-                'variants.*.size_id' => 'required_with:variants|exists:sizes,id',
+                'variants.*.color_id' => 'nullable|exists:colors,id',
+                'variants.*.size_id' => 'nullable|exists:sizes,id',
                 'variants.*.price' => 'required_with:variants|numeric|min:0',
                 'variants.*.offer_price' => 'nullable|numeric|min:0',
                 'variants.*.stock' => 'required_with:variants|integer|min:0',
                 'variants.*.status' => 'nullable|in:published,draft',
                 'is_featured' => 'boolean',
                 'status' => 'in:published,draft',
-                'images' => 'nullable|array',
+                'images' => 'nullable|array|max:4',
                 'images.*' => 'image|mimes:jpeg,png,jpg,gif,svg|max:2048',
             ]);
 
@@ -142,6 +142,10 @@ class ProductController extends Controller
                     $data['sku'] = 'HS-' . strtoupper(Str::random(8));
                 }
 
+                if ($request->hasFile('thumbnail')) {
+                    $data['thumbnail'] = $this->uploadFile($request->file('thumbnail'), 'products');
+                }
+
                 $product = Product::create($data);
 
                 // Handle Images
@@ -160,8 +164,15 @@ class ProductController extends Controller
 
                 if ($request->filled('variants')) {
                     foreach ($request->variants as $variant) {
-                        $product->variants()->create($variant);
+                        // If color_id or size_id is string, it might be a new attribute or empty
+                        if (!empty($variant['color_id']) || !empty($variant['size_id'])) {
+                            $product->variants()->create($variant);
+                        }
                     }
+                }
+                
+                if ($request->filled('amenities')) {
+                    $product->amenityItems()->sync($request->amenities);
                 }
 
                 return $product
@@ -215,7 +226,7 @@ class ProductController extends Controller
                 'category_id' => 'exists:categories,id',
                 'name' => 'string|max:255',
                 'sku' => 'nullable|string|unique:products,sku,' . $id,
-                'thumbnail' => 'nullable|string',
+                'thumbnail' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
                 'description' => 'nullable|string',
                 'price' => 'numeric',
                 'offer_price' => 'nullable|numeric',
@@ -223,15 +234,15 @@ class ProductController extends Controller
                 'amenities' => 'nullable|array',
                 'variants' => 'nullable|array',
                 'variants.*.id' => 'nullable|exists:product_variants,id',
-                'variants.*.color_id' => 'required_with:variants|exists:colors,id',
-                'variants.*.size_id' => 'required_with:variants|exists:sizes,id',
+                'variants.*.color_id' => 'nullable|exists:colors,id',
+                'variants.*.size_id' => 'nullable|exists:sizes,id',
                 'variants.*.price' => 'required_with:variants|numeric|min:0',
                 'variants.*.offer_price' => 'nullable|numeric|min:0',
                 'variants.*.stock' => 'required_with:variants|integer|min:0',
                 'variants.*.status' => 'nullable|in:published,draft',
                 'is_featured' => 'boolean',
                 'status' => 'in:published,draft',
-                'images' => 'nullable|array',
+                'images' => 'nullable|array|max:4',
                 'images.*' => 'image|mimes:jpeg,png,jpg,gif,svg|max:2048',
             ]);
 
@@ -245,6 +256,10 @@ class ProductController extends Controller
             }
 
             DB::transaction(function () use ($product, $data, $request) {
+                if ($request->hasFile('thumbnail')) {
+                    $data['thumbnail'] = $this->uploadFile($request->file('thumbnail'), 'products');
+                }
+
                 $product->update($data);
 
                 if ($request->hasFile('images')) {
@@ -272,9 +287,15 @@ class ProductController extends Controller
                                 ->where('id', $variantId)
                                 ->update($variant);
                         } else {
-                            $product->variants()->create($variant);
+                            if (!empty($variant['color_id']) || !empty($variant['size_id'])) {
+                                $product->variants()->create($variant);
+                            }
                         }
                     }
+                }
+
+                if ($request->filled('amenities')) {
+                    $product->amenityItems()->sync($request->amenities);
                 }
             });
 

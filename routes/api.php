@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\NewsletterController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\ContactController;
+use App\Http\Controllers\Api\AttributeController;
 
 Route::group(['middleware' => 'api','prefix' => 'auth'], function ($router) {
     Route::post('/register', [AuthController::class, 'register']);
@@ -109,6 +110,15 @@ Route::group(['prefix' => 'admin', 'middleware' => ['auth:api', 'admin']], funct
 
     // Settings Management
     Route::put('/settings', [\App\Http\Controllers\SettingController::class, 'update']);
+
+    // Attributes for Product Form
+    Route::get('/get-attributes', [AdminController::class, 'getAttributes']);
+
+    // Attribute Management (CRUD)
+    Route::get('/attributes/{type}', [AttributeController::class, 'index']);
+    Route::post('/attributes/{type}', [AttributeController::class, 'store']);
+    Route::put('/attributes/{type}/{id}', [AttributeController::class, 'update']);
+    Route::delete('/attributes/{type}/{id}', [AttributeController::class, 'destroy']);
 });
 
 // Settings API (Public)

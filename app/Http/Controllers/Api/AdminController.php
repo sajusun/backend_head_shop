@@ -12,6 +12,10 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
+use App\Models\Color;
+use App\Models\Size;
+use App\Models\Amenity;
+use App\Models\Category;
 
 class AdminController extends Controller
 {
@@ -252,6 +256,22 @@ class AdminController extends Controller
 
             $blogs = $query->latest()->paginate($request->query('per_page', 20));
             return $this->success('Successfully retrieve', $blogs->items(), true, $blogs);
+        } catch (\Throwable $th) {
+            Log::info($th->getMessage());
+            return $this->error('Somethings Went Wrong', 500);
+        }
+    }
+
+    public function getAttributes()
+    {
+        try {
+            $data = [
+                'colors' => Color::where('status', 'active')->get(),
+                'sizes' => Size::where('status', 'active')->get(),
+                'amenities' => Amenity::where('status', 'active')->get(),
+                'categories' => Category::where('status', 'active')->where('type', 'product')->get(),
+            ];
+            return $this->success('Successfully retrieve', $data);
         } catch (\Throwable $th) {
             Log::info($th->getMessage());
             return $this->error('Somethings Went Wrong', 500);
