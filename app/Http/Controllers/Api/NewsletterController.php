@@ -79,4 +79,22 @@ class NewsletterController extends Controller
             return $this->error('Somethings Went Wrong', 500);
         }
     }
+
+    /**
+     * Delete a subscription (Admin Only).
+     */
+    public function destroy($id)
+    {
+        try {
+            $subscription = NewsletterSubscription::findOrFail($id);
+            $subscription->delete();
+
+            return $this->success('Subscription deleted successfully');
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return $this->error('Subscription not found', 404);
+        } catch (\Throwable $th) {
+            Log::error($th->getMessage());
+            return $this->error('Somethings Went Wrong', 500);
+        }
+    }
 }

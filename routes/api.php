@@ -91,6 +91,7 @@ Route::group(['prefix' => 'admin', 'middleware' => ['auth:api', 'admin']], funct
 
     // Newsletter Management
     Route::get('/newsletter', [NewsletterController::class, 'index']);
+    Route::delete('/newsletter/{id}', [NewsletterController::class, 'destroy']);
 
     // Blog Management
     Route::get('/blogs', [AdminController::class, 'getAllBlogs']);
