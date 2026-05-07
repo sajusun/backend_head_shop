@@ -107,5 +107,10 @@ Route::group(['prefix' => 'admin', 'middleware' => ['auth:api', 'admin']], funct
     // Blog Management
     Route::get('/blogs', [AdminController::class, 'getAllBlogs']);
 
-    // Add more admin routes here (e.g., manage settings)
+    // Settings Management
+    Route::put('/settings', [\App\Http\Controllers\SettingController::class, 'update']);
 });
+
+// Settings API (Public)
+Route::get('settings', [\App\Http\Controllers\SettingController::class, 'index']);
+Route::get('settings/group/{group}', [\App\Http\Controllers\SettingController::class, 'getByGroup']);
