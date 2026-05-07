@@ -9,6 +9,7 @@ use Illuminate\Support\Str;
 use App\Models\ProductImage;
 use App\Models\ProductVariant;
 use Illuminate\Http\Request;
+use App\Http\Resources\ProductResource;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Http\Controllers\Controller;
@@ -27,7 +28,7 @@ class ProductController extends Controller
         $currentPage = $request->input('current_page', 1);
 
         try {
-            $query = Product::with(['category', 'primaryImage', 'variants.color', 'variants.size'])
+            $query = Product::with(['category', 'primaryImage', 'variants.color', 'variants.size', 'amenityItems'])
                 ->withCount('approvedReviews')
                 ->withAvg('approvedReviews', 'rating');
 
@@ -77,7 +78,12 @@ class ProductController extends Controller
 
             $products = $query->paginate($perPage, '*', 'page', $currentPage);
 
-            return $this->success('Successfully retrieve', $products->items(), true, $products);
+            return $this->success(
+                'Successfully retrieve',
+                ProductResource::collection($products->items())->resolve($request),
+                true,
+                $products
+            );
 
         } catch (\Throwable $th) {
             Log::info($th->getMessage());
@@ -98,6 +104,7 @@ class ProductController extends Controller
                 'description' => 'nullable|string',
                 'price' => 'required|numeric',
                 'offer_price' => 'nullable|numeric',
+                'amenities' => 'nullable|array',
                 'variants' => 'nullable|array',
                 'variants.*.color_id' => 'required_with:variants|exists:colors,id',
                 'variants.*.size_id' => 'required_with:variants|exists:sizes,id',
@@ -152,10 +159,20 @@ class ProductController extends Controller
                     }
                 }
 
-                return $product->load(['images', 'variants.color', 'variants.size']);
+                return $product
+                    ->load(['category', 'images', 'primaryImage', 'variants.color', 'variants.size', 'amenityItems'])
+                    ->loadCount('approvedReviews')
+                    ->loadAvg('approvedReviews', 'rating');
             });
 
-            return $this->success('Product created successfully', $product, false, null, true, 201);
+            return $this->success(
+                'Product created successfully',
+                ProductResource::make($product)->resolve($request),
+                false,
+                null,
+                true,
+                201
+            );
         } catch (\Throwable $th) {
             Log::info($th->getMessage());
             return $this->error('Somethings Went Wrong', 500);
@@ -171,6 +188,7 @@ class ProductController extends Controller
             $product = Product::with([
                 'category',
                 'images',
+                'amenityItems',
                 'variants.color',
                 'variants.size',
                 'approvedReviews.user',
@@ -179,7 +197,7 @@ class ProductController extends Controller
                 ->withCount('approvedReviews')
                 ->withAvg('approvedReviews', 'rating')
                 ->findOrFail($id);
-            return $this->success('Successfully retrieve', $product);
+            return $this->success('Successfully retrieve', ProductResource::make($product)->resolve(request()));
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return $this->error('Product not found', 404);
         } catch (\Throwable $th) {
@@ -204,6 +222,7 @@ class ProductController extends Controller
                 'description' => 'nullable|string',
                 'price' => 'numeric',
                 'offer_price' => 'nullable|numeric',
+                'amenities' => 'nullable|array',
                 'variants' => 'nullable|array',
                 'variants.*.id' => 'nullable|exists:product_variants,id',
                 'variants.*.color_id' => 'required_with:variants|exists:colors,id',
@@ -244,7 +263,12 @@ class ProductController extends Controller
                 }
             });
 
-            return $this->success('Product updated successfully', $product->load(['images', 'variants.color', 'variants.size']));
+            $product = $product
+                ->load(['category', 'images', 'primaryImage', 'variants.color', 'variants.size', 'amenityItems'])
+                ->loadCount('approvedReviews')
+                ->loadAvg('approvedReviews', 'rating');
+
+            return $this->success('Product updated successfully', ProductResource::make($product)->resolve($request));
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return $this->error('Product not found', 404);
         } catch (\Throwable $th) {

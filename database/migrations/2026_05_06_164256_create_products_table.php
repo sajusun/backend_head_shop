@@ -21,6 +21,7 @@ return new class extends Migration
             $table->longText('description')->nullable();
             $table->decimal('price', 10, 2);
             $table->decimal('offer_price', 10, 2)->nullable();
+            $table->json('amenities')->nullable();
             // $table->integer('stock')->default(0);
             // $table->json('variants')->nullable();
             $table->boolean('is_featured')->default(false);

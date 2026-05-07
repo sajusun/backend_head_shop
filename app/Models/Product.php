@@ -19,6 +19,7 @@ class Product extends Model
         'description',
         'price',
         'offer_price',
+        'amenities',
         'is_featured',
         'status',
     ];
@@ -27,6 +28,7 @@ class Product extends Model
         'is_featured' => 'boolean',
         'price' => 'decimal:2',
         'offer_price' => 'decimal:2',
+        'amenities' => 'array',
     ];
 
     public function category()
@@ -62,6 +64,11 @@ class Product extends Model
     public function tags()
     {
         return $this->morphToMany(Tag::class, 'taggable');
+    }
+
+    public function amenityItems()
+    {
+        return $this->belongsToMany(Amenity::class);
     }
 
     public function favoritedBy()
