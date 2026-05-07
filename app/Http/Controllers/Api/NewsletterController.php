@@ -4,11 +4,14 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\NewsletterSubscription;
+use App\Traits\ApiResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 
 class NewsletterController extends Controller
 {
+    use ApiResponse;
     /**
      * Subscribe to the newsletter.
      */
@@ -19,15 +22,20 @@ class NewsletterController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return response()->json($validator->errors(), 422);
+            return $this->error('Validation error', 422, $validator->errors()->toArray());
         }
 
-        $subscription = NewsletterSubscription::create([
-            'email' => $request->email,
-            'status' => 'subscribed',
-        ]);
+        try {
+            $subscription = NewsletterSubscription::create([
+                'email' => $request->email,
+                'status' => 'subscribed',
+            ]);
 
-        return response()->json(['message' => 'Subscribed successfully', 'subscription' => $subscription], 201);
+            return $this->success('Subscribed successfully', $subscription, false, null, true, 201);
+        } catch (\Throwable $th) {
+            Log::info($th->getMessage());
+            return $this->error('Somethings Went Wrong', 500);
+        }
     }
 
     /**
@@ -40,13 +48,22 @@ class NewsletterController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return response()->json($validator->errors(), 422);
+            return $this->error('Validation error', 422, $validator->errors()->toArray());
         }
 
-        $subscription = NewsletterSubscription::where('email', $request->email)->first();
-        $subscription->update(['status' => 'unsubscribed']);
+        try {
+            $subscription = NewsletterSubscription::where('email', $request->email)->first();
+            if (!$subscription) {
+                return $this->error('Subscription not found', 404);
+            }
 
-        return response()->json(['message' => 'Unsubscribed successfully']);
+            $subscription->update(['status' => 'unsubscribed']);
+
+            return $this->success('Unsubscribed successfully');
+        } catch (\Throwable $th) {
+            Log::info($th->getMessage());
+            return $this->error('Somethings Went Wrong', 500);
+        }
     }
 
     /**
@@ -54,7 +71,12 @@ class NewsletterController extends Controller
      */
     public function index()
     {
-        $subscriptions = NewsletterSubscription::latest()->paginate(20);
-        return response()->json($subscriptions);
+        try {
+            $subscriptions = NewsletterSubscription::latest()->paginate(20);
+            return $this->success('Successfully retrieve', $subscriptions->items(), true, $subscriptions);
+        } catch (\Throwable $th) {
+            Log::info($th->getMessage());
+            return $this->error('Somethings Went Wrong', 500);
+        }
     }
 }

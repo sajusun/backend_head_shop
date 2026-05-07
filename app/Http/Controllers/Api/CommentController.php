@@ -4,11 +4,14 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Comment;
+use App\Traits\ApiResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 
 class CommentController extends Controller
 {
+    use ApiResponse;
     /**
      * Display a listing of comments for a blog post.
      */
@@ -19,18 +22,23 @@ class CommentController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return response()->json($validator->errors(), 422);
+            return $this->error('Validation error', 422, $validator->errors()->toArray());
         }
 
-        $comments = Comment::with('user')
-            ->where('blog_id', $request->blog_id)
-            ->where('status', 'approved')
-            ->whereNull('parent_id')
-            ->with('replies.user')
-            ->latest()
-            ->paginate(20);
+        try {
+            $comments = Comment::with('user')
+                ->where('blog_id', $request->blog_id)
+                ->where('status', 'approved')
+                ->whereNull('parent_id')
+                ->with('replies.user')
+                ->latest()
+                ->paginate(20);
 
-        return response()->json($comments);
+            return $this->success('Successfully retrieve', $comments->items(), true, $comments);
+        } catch (\Throwable $th) {
+            Log::info($th->getMessage());
+            return $this->error('Somethings Went Wrong', 500);
+        }
     }
 
     /**
@@ -45,21 +53,23 @@ class CommentController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return response()->json($validator->errors(), 422);
+            return $this->error('Validation error', 422, $validator->errors()->toArray());
         }
 
-        $comment = Comment::create([
-            'blog_id' => $request->blog_id,
-            'user_id' => auth('api')->id(),
-            'content' => $request->content,
-            'parent_id' => $request->parent_id,
-            'status' => 'pending', // Comments need approval by default
-        ]);
+        try {
+            $comment = Comment::create([
+                'blog_id' => $request->blog_id,
+                'user_id' => auth('api')->id(),
+                'content' => $request->content,
+                'parent_id' => $request->parent_id,
+                'status' => 'pending', // Comments need approval by default
+            ]);
 
-        return response()->json([
-            'message' => 'Comment submitted for approval',
-            'comment' => $comment
-        ], 201);
+            return $this->success('Comment submitted for approval', $comment, false, null, true, 201);
+        } catch (\Throwable $th) {
+            Log::info($th->getMessage());
+            return $this->error('Somethings Went Wrong', 500);
+        }
     }
 
     /**
@@ -67,23 +77,30 @@ class CommentController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        $comment = Comment::findOrFail($id);
+        try {
+            $comment = Comment::findOrFail($id);
 
-        if (auth('api')->user()->role !== 'admin') {
-            return response()->json(['error' => 'Unauthorized'], 403);
+            if (auth('api')->user()->role !== 'admin') {
+                return $this->error('Unauthorized', 403);
+            }
+
+            $validator = Validator::make($request->all(), [
+                'status' => 'required|in:pending,approved,rejected',
+            ]);
+
+            if ($validator->fails()) {
+                return $this->error('Validation error', 422, $validator->errors()->toArray());
+            }
+
+            $comment->update(['status' => $request->status]);
+
+            return $this->success('Comment updated successfully', $comment);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return $this->error('Comment not found', 404);
+        } catch (\Throwable $th) {
+            Log::info($th->getMessage());
+            return $this->error('Somethings Went Wrong', 500);
         }
-
-        $validator = Validator::make($request->all(), [
-            'status' => 'required|in:pending,approved,rejected',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json($validator->errors(), 422);
-        }
-
-        $comment->update(['status' => $request->status]);
-
-        return response()->json($comment);
     }
 
     /**
@@ -91,14 +108,21 @@ class CommentController extends Controller
      */
     public function destroy(string $id)
     {
-        $comment = Comment::findOrFail($id);
+        try {
+            $comment = Comment::findOrFail($id);
 
-        if (auth('api')->id() !== $comment->user_id && auth('api')->user()->role !== 'admin') {
-            return response()->json(['error' => 'Unauthorized'], 403);
+            if (auth('api')->id() !== $comment->user_id && auth('api')->user()->role !== 'admin') {
+                return $this->error('Unauthorized', 403);
+            }
+
+            $comment->delete();
+
+            return $this->success('Comment deleted successfully');
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return $this->error('Comment not found', 404);
+        } catch (\Throwable $th) {
+            Log::info($th->getMessage());
+            return $this->error('Somethings Went Wrong', 500);
         }
-
-        $comment->delete();
-
-        return response()->json(['message' => 'Comment deleted successfully']);
     }
 }

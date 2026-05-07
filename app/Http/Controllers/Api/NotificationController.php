@@ -5,19 +5,27 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Notification;
 use Illuminate\Http\Request;
+use App\Traits\ApiResponse;
+use Illuminate\Support\Facades\Log;
 
 class NotificationController extends Controller
 {
+    use ApiResponse;
     /**
      * Display a listing of the user's notifications.
      */
     public function index()
     {
-        $notifications = Notification::where('user_id', auth('api')->id())
-            ->latest()
-            ->paginate(20);
+        try {
+            $notifications = Notification::where('user_id', auth('api')->id())
+                ->latest()
+                ->paginate(20);
 
-        return response()->json($notifications);
+            return $this->success('Successfully retrieve', $notifications->items(), true, $notifications);
+        } catch (\Throwable $th) {
+            Log::info($th->getMessage());
+            return $this->error('Somethings Went Wrong', 500);
+        }
     }
 
     /**
@@ -25,12 +33,19 @@ class NotificationController extends Controller
      */
     public function markAsRead(string $id)
     {
-        $notification = Notification::where('user_id', auth('api')->id())
-            ->findOrFail($id);
+        try {
+            $notification = Notification::where('user_id', auth('api')->id())
+                ->findOrFail($id);
 
-        $notification->update(['is_read' => true]);
+            $notification->update(['is_read' => true]);
 
-        return response()->json(['message' => 'Notification marked as read']);
+            return $this->success('Notification marked as read');
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return $this->error('Notification not found', 404);
+        } catch (\Throwable $th) {
+            Log::info($th->getMessage());
+            return $this->error('Somethings Went Wrong', 500);
+        }
     }
 
     /**
@@ -38,11 +53,16 @@ class NotificationController extends Controller
      */
     public function markAllAsRead()
     {
-        Notification::where('user_id', auth('api')->id())
-            ->where('is_read', false)
-            ->update(['is_read' => true]);
+        try {
+            Notification::where('user_id', auth('api')->id())
+                ->where('is_read', false)
+                ->update(['is_read' => true]);
 
-        return response()->json(['message' => 'All notifications marked as read']);
+            return $this->success('All notifications marked as read');
+        } catch (\Throwable $th) {
+            Log::info($th->getMessage());
+            return $this->error('Somethings Went Wrong', 500);
+        }
     }
 
     /**
@@ -50,11 +70,18 @@ class NotificationController extends Controller
      */
     public function destroy(string $id)
     {
-        $notification = Notification::where('user_id', auth('api')->id())
-            ->findOrFail($id);
+        try {
+            $notification = Notification::where('user_id', auth('api')->id())
+                ->findOrFail($id);
 
-        $notification->delete();
+            $notification->delete();
 
-        return response()->json(['message' => 'Notification deleted successfully']);
+            return $this->success('Notification deleted successfully');
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return $this->error('Notification not found', 404);
+        } catch (\Throwable $th) {
+            Log::info($th->getMessage());
+            return $this->error('Somethings Went Wrong', 500);
+        }
     }
 }

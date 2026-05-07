@@ -7,23 +7,33 @@ use App\Models\Order;
 use App\Models\Product;
 use App\Models\User;
 use App\Models\Blog;
+use App\Traits\ApiResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Validator;
 
 class AdminController extends Controller
 {
+    use ApiResponse;
+
     public function getDashboardStats()
     {
-        $stats = [
-            'total_users' => User::count(),
-            'total_products' => Product::count(),
-            'total_orders' => Order::count(),
-            'total_revenue' => Order::where('payment_status', 'paid')->sum('total_amount'),
-            'pending_orders' => Order::where('status', 'pending')->count(),
-            'published_blogs' => Blog::where('status', 'published')->count(),
-            'recent_orders' => Order::with('user')->latest()->take(5)->get(),
-        ];
+        try {
+            $stats = [
+                'total_users' => User::count(),
+                'total_products' => Product::count(),
+                'total_orders' => Order::count(),
+                'total_revenue' => Order::where('payment_status', 'paid')->sum('total_amount'),
+                'pending_orders' => Order::where('status', 'pending')->count(),
+                'published_blogs' => Blog::where('status', 'published')->count(),
+                'recent_orders' => Order::with('user')->latest()->take(5)->get(),
+            ];
 
-        return response()->json($stats);
+            return $this->success('Successfully retrieve', $stats);
+        } catch (\Throwable $th) {
+            Log::info($th->getMessage());
+            return $this->error('Somethings Went Wrong', 500);
+        }
     }
 
     /**
@@ -31,14 +41,19 @@ class AdminController extends Controller
      */
     public function getAllOrders(Request $request)
     {
-        $query = Order::with(['user', 'items.product']);
+        try {
+            $query = Order::with(['user', 'items.product']);
 
-        if ($request->has('status')) {
-            $query->where('status', $request->status);
+            if ($request->filled('status')) {
+                $query->where('status', $request->status);
+            }
+
+            $orders = $query->latest()->paginate($request->query('per_page', 20));
+            return $this->success('Successfully retrieve', $orders->items(), true, $orders);
+        } catch (\Throwable $th) {
+            Log::info($th->getMessage());
+            return $this->error('Somethings Went Wrong', 500);
         }
-
-        $orders = $query->latest()->paginate($request->query('per_page', 20));
-        return response()->json($orders);
     }
 
     /**
@@ -46,20 +61,27 @@ class AdminController extends Controller
      */
     public function updateOrderStatus(Request $request, string $id)
     {
-        $order = Order::findOrFail($id);
-        
-        $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
-            'status' => 'required|in:pending,processing,shipped,delivered,cancelled',
-            'payment_status' => 'in:pending,paid,failed,refunded',
-        ]);
+        try {
+            $order = Order::findOrFail($id);
 
-        if ($validator->fails()) {
-            return response()->json($validator->errors(), 422);
+            $validator = Validator::make($request->all(), [
+                'status' => 'required|in:pending,processing,shipped,delivered,cancelled',
+                'payment_status' => 'in:pending,paid,failed,refunded',
+            ]);
+
+            if ($validator->fails()) {
+                return $this->error('Validation error', 422, $validator->errors()->toArray());
+            }
+
+            $order->update($validator->validated());
+
+            return $this->success('Order updated successfully', $order);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return $this->error('Order not found', 404);
+        } catch (\Throwable $th) {
+            Log::info($th->getMessage());
+            return $this->error('Somethings Went Wrong', 500);
         }
-
-        $order->update($request->all());
-
-        return response()->json(['message' => 'Order updated successfully', 'order' => $order]);
     }
 
     /**
@@ -67,7 +89,12 @@ class AdminController extends Controller
      */
     public function getAllUsers(Request $request)
     {
-        $users = User::latest()->paginate($request->query('per_page', 20));
-        return response()->json($users);
+        try {
+            $users = User::latest()->paginate($request->query('per_page', 20));
+            return $this->success('Successfully retrieve', $users->items(), true, $users);
+        } catch (\Throwable $th) {
+            Log::info($th->getMessage());
+            return $this->error('Somethings Went Wrong', 500);
+        }
     }
 }

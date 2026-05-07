@@ -3,13 +3,17 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Traits\ApiResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use PHPOpenSourceSaver\JWTAuth\Facades\JWTAuth;
 
 class AuthController extends Controller
 {
+    use ApiResponse;
+
     /**
      * Create a new AuthController instance.
      *
@@ -34,20 +38,22 @@ class AuthController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return response()->json($validator->errors()->toJson(), 400);
+            return $this->error('Validation error', 422, $validator->errors()->toArray());
         }
 
-        $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-            'role' => 'user',
-        ]);
+        try {
+            $user = User::create([
+                'name' => $request->name,
+                'email' => $request->email,
+                'password' => Hash::make($request->password),
+                'role' => 'user',
+            ]);
 
-        return response()->json([
-            'message' => 'User successfully registered',
-            'user' => $user
-        ], 201);
+            return $this->success('User successfully registered', $user, false, null, true, 201);
+        } catch (\Throwable $th) {
+            Log::info($th->getMessage());
+            return $this->error('Somethings Went Wrong', 500);
+        }
     }
 
     /**
@@ -63,11 +69,11 @@ class AuthController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return response()->json($validator->errors(), 422);
+            return $this->error('Validation error', 422, $validator->errors()->toArray());
         }
 
         if (!$token = auth('api')->attempt($validator->validated())) {
-            return response()->json(['error' => 'Unauthorized'], 401);
+            return $this->error('Unauthorized', 401);
         }
 
         return $this->createNewToken($token);
@@ -80,9 +86,13 @@ class AuthController extends Controller
      */
     public function logout()
     {
-        auth('api')->logout();
-
-        return response()->json(['message' => 'User successfully signed out']);
+        try {
+            auth('api')->logout();
+            return $this->success('User successfully signed out');
+        } catch (\Throwable $th) {
+            Log::info($th->getMessage());
+            return $this->error('Somethings Went Wrong', 500);
+        }
     }
 
     /**
@@ -92,7 +102,12 @@ class AuthController extends Controller
      */
     public function refresh()
     {
-        return $this->createNewToken(auth('api')->refresh());
+        try {
+            return $this->createNewToken(auth('api')->refresh());
+        } catch (\Throwable $th) {
+            Log::info($th->getMessage());
+            return $this->error('Somethings Went Wrong', 500);
+        }
     }
 
     /**
@@ -102,7 +117,12 @@ class AuthController extends Controller
      */
     public function userProfile()
     {
-        return response()->json(auth('api')->user());
+        try {
+            return $this->success('Successfully retrieve', auth('api')->user());
+        } catch (\Throwable $th) {
+            Log::info($th->getMessage());
+            return $this->error('Somethings Went Wrong', 500);
+        }
     }
 
     /**
@@ -114,11 +134,13 @@ class AuthController extends Controller
      */
     protected function createNewToken($token)
     {
-        return response()->json([
+        $payload = [
             'access_token' => $token,
             'token_type' => 'bearer',
             'expires_in' => auth('api')->factory()->getTTL() * 60,
             'user' => auth('api')->user()
-        ]);
+        ];
+
+        return $this->success('Successfully retrieve', $payload);
     }
 }

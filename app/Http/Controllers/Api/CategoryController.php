@@ -4,24 +4,32 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Category;
+use App\Traits\ApiResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 
 class CategoryController extends Controller
 {
+    use ApiResponse;
     /**
      * Display a listing of the resource.
      */
     public function index(Request $request)
     {
-        $type = $request->query('type', 'product');
-        $categories = Category::with('children')
-            ->where('type', $type)
-            ->whereNull('parent_id')
-            ->get();
+        try {
+            $type = $request->query('type', 'product');
+            $categories = Category::with('children')
+                ->where('type', $type)
+                ->whereNull('parent_id')
+                ->get();
 
-        return response()->json($categories);
+            return $this->success('Successfully retrieve', $categories);
+        } catch (\Throwable $th) {
+            Log::info($th->getMessage());
+            return $this->error('Somethings Went Wrong', 500);
+        }
     }
 
     /**
@@ -39,21 +47,26 @@ class CategoryController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return response()->json($validator->errors(), 422);
+            return $this->error('Validation error', 422, $validator->errors()->toArray());
         }
 
-        $data = $validator->validated();
-        $data['slug'] = Str::slug($data['name']);
-        
-        // Ensure slug uniqueness
-        $count = Category::where('slug', 'like', $data['slug'] . '%')->count();
-        if ($count > 0) {
-            $data['slug'] = $data['slug'] . '-' . ($count + 1);
+        try {
+            $data = $validator->validated();
+            $data['slug'] = Str::slug($data['name']);
+
+            // Ensure slug uniqueness
+            $count = Category::where('slug', 'like', $data['slug'] . '%')->count();
+            if ($count > 0) {
+                $data['slug'] = $data['slug'] . '-' . ($count + 1);
+            }
+
+            $category = Category::create($data);
+
+            return $this->success('Category created successfully', $category, false, null, true, 201);
+        } catch (\Throwable $th) {
+            Log::info($th->getMessage());
+            return $this->error('Somethings Went Wrong', 500);
         }
-
-        $category = Category::create($data);
-
-        return response()->json($category, 201);
     }
 
     /**
@@ -61,8 +74,15 @@ class CategoryController extends Controller
      */
     public function show(string $id)
     {
-        $category = Category::with(['children', 'products'])->findOrFail($id);
-        return response()->json($category);
+        try {
+            $category = Category::with(['children', 'products'])->findOrFail($id);
+            return $this->success('Successfully retrieve', $category);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return $this->error('Category not found', 404);
+        } catch (\Throwable $th) {
+            Log::info($th->getMessage());
+            return $this->error('Somethings Went Wrong', 500);
+        }
     }
 
     /**
@@ -70,29 +90,36 @@ class CategoryController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        $category = Category::findOrFail($id);
+        try {
+            $category = Category::findOrFail($id);
 
-        $validator = Validator::make($request->all(), [
-            'name' => 'string|max:255',
-            'type' => 'in:product,blog',
-            'parent_id' => 'nullable|exists:categories,id',
-            'description' => 'nullable|string',
-            'image' => 'nullable|string',
-            'status' => 'in:active,inactive',
-        ]);
+            $validator = Validator::make($request->all(), [
+                'name' => 'string|max:255',
+                'type' => 'in:product,blog',
+                'parent_id' => 'nullable|exists:categories,id',
+                'description' => 'nullable|string',
+                'image' => 'nullable|string',
+                'status' => 'in:active,inactive',
+            ]);
 
-        if ($validator->fails()) {
-            return response()->json($validator->errors(), 422);
+            if ($validator->fails()) {
+                return $this->error('Validation error', 422, $validator->errors()->toArray());
+            }
+
+            $data = $validator->validated();
+            if (isset($data['name'])) {
+                $data['slug'] = Str::slug($data['name']);
+            }
+
+            $category->update($data);
+
+            return $this->success('Category updated successfully', $category);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return $this->error('Category not found', 404);
+        } catch (\Throwable $th) {
+            Log::info($th->getMessage());
+            return $this->error('Somethings Went Wrong', 500);
         }
-
-        $data = $validator->validated();
-        if (isset($data['name'])) {
-            $data['slug'] = Str::slug($data['name']);
-        }
-
-        $category->update($data);
-
-        return response()->json($category);
     }
 
     /**
@@ -100,9 +127,16 @@ class CategoryController extends Controller
      */
     public function destroy(string $id)
     {
-        $category = Category::findOrFail($id);
-        $category->delete();
+        try {
+            $category = Category::findOrFail($id);
+            $category->delete();
 
-        return response()->json(['message' => 'Category deleted successfully']);
+            return $this->success('Category deleted successfully');
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return $this->error('Category not found', 404);
+        } catch (\Throwable $th) {
+            Log::info($th->getMessage());
+            return $this->error('Somethings Went Wrong', 500);
+        }
     }
 }

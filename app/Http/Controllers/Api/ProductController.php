@@ -75,6 +75,7 @@ class ProductController extends Controller
             $products = $query->paginate($perPage, '*', 'page', $currentPage);
 
             return $this->success('Successfully retrieve', $products->items(), true, $products);
+
         } catch (\Throwable $th) {
             Log::info($th->getMessage());
             return $this->error("Somethings Went Wrong");
@@ -102,41 +103,48 @@ class ProductController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return response()->json($validator->errors(), 422);
+            return $this->error('Validation error', 422, $validator->errors()->toArray());
         }
 
-        return DB::transaction(function () use ($request) {
-            $data = $request->except('images');
-            $data['slug'] = Str::slug($data['name']);
+        try {
+            $product = DB::transaction(function () use ($request) {
+                $data = $request->except('images');
+                $data['slug'] = Str::slug($data['name']);
 
-            // Ensure slug uniqueness
-            $count = Product::where('slug', 'like', $data['slug'] . '%')->count();
-            if ($count > 0) {
-                $data['slug'] = $data['slug'] . '-' . ($count + 1);
-            }
-
-            if (empty($data['sku'])) {
-                $data['sku'] = 'HS-' . strtoupper(Str::random(8));
-            }
-
-            $product = Product::create($data);
-
-            // Handle Images
-            if ($request->hasFile('images')) {
-                foreach ($request->file('images') as $index => $image) {
-                    $path = $this->uploadFile($image, 'products');
-
-                    ProductImage::create([
-                        'product_id' => $product->id,
-                        'image_path' => $path,
-                        'is_primary' => $index === 0,
-                        'sort_order' => $index,
-                    ]);
+                // Ensure slug uniqueness
+                $count = Product::where('slug', 'like', $data['slug'] . '%')->count();
+                if ($count > 0) {
+                    $data['slug'] = $data['slug'] . '-' . ($count + 1);
                 }
-            }
 
-            return response()->json($product->load('images'), 201);
-        });
+                if (empty($data['sku'])) {
+                    $data['sku'] = 'HS-' . strtoupper(Str::random(8));
+                }
+
+                $product = Product::create($data);
+
+                // Handle Images
+                if ($request->hasFile('images')) {
+                    foreach ($request->file('images') as $index => $image) {
+                        $path = $this->uploadFile($image, 'products');
+
+                        ProductImage::create([
+                            'product_id' => $product->id,
+                            'image_path' => $path,
+                            'is_primary' => $index === 0,
+                            'sort_order' => $index,
+                        ]);
+                    }
+                }
+
+                return $product->load('images');
+            });
+
+            return $this->success('Product created successfully', $product, false, null, true, 201);
+        } catch (\Throwable $th) {
+            Log::info($th->getMessage());
+            return $this->error('Somethings Went Wrong', 500);
+        }
     }
 
     /**
@@ -144,8 +152,15 @@ class ProductController extends Controller
      */
     public function show(string $id)
     {
-        $product = Product::with(['category', 'images', 'reviews.user'])->findOrFail($id);
-        return response()->json($product);
+        try {
+            $product = Product::with(['category', 'images', 'reviews.user'])->findOrFail($id);
+            return $this->success('Successfully retrieve', $product);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return $this->error('Product not found', 404);
+        } catch (\Throwable $th) {
+            Log::info($th->getMessage());
+            return $this->error('Somethings Went Wrong', 500);
+        }
     }
 
     /**
@@ -153,33 +168,40 @@ class ProductController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        $product = Product::findOrFail($id);
+        try {
+            $product = Product::findOrFail($id);
 
-        $validator = Validator::make($request->all(), [
-            'category_id' => 'exists:categories,id',
-            'name' => 'string|max:255',
-            'sku' => 'nullable|string|unique:products,sku,' . $id,
-            'description' => 'nullable|string',
-            'price' => 'numeric',
-            'offer_price' => 'nullable|numeric',
-            'stock' => 'integer',
-            'variants' => 'nullable|json',
-            'is_featured' => 'boolean',
-            'status' => 'in:active,inactive',
-        ]);
+            $validator = Validator::make($request->all(), [
+                'category_id' => 'exists:categories,id',
+                'name' => 'string|max:255',
+                'sku' => 'nullable|string|unique:products,sku,' . $id,
+                'description' => 'nullable|string',
+                'price' => 'numeric',
+                'offer_price' => 'nullable|numeric',
+                'stock' => 'integer',
+                'variants' => 'nullable|json',
+                'is_featured' => 'boolean',
+                'status' => 'in:active,inactive',
+            ]);
 
-        if ($validator->fails()) {
-            return response()->json($validator->errors(), 422);
+            if ($validator->fails()) {
+                return $this->error('Validation error', 422, $validator->errors()->toArray());
+            }
+
+            $data = $request->all();
+            if (isset($data['name'])) {
+                $data['slug'] = Str::slug($data['name']);
+            }
+
+            $product->update($data);
+
+            return $this->success('Product updated successfully', $product);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return $this->error('Product not found', 404);
+        } catch (\Throwable $th) {
+            Log::info($th->getMessage());
+            return $this->error('Somethings Went Wrong', 500);
         }
-
-        $data = $request->all();
-        if (isset($data['name'])) {
-            $data['slug'] = Str::slug($data['name']);
-        }
-
-        $product->update($data);
-
-        return response()->json($product);
     }
 
     /**
@@ -187,9 +209,16 @@ class ProductController extends Controller
      */
     public function destroy(string $id)
     {
-        $product = Product::findOrFail($id);
-        $product->delete();
+        try {
+            $product = Product::findOrFail($id);
+            $product->delete();
 
-        return response()->json(['message' => 'Product deleted successfully']);
+            return $this->success('Product deleted successfully');
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return $this->error('Product not found', 404);
+        } catch (\Throwable $th) {
+            Log::info($th->getMessage());
+            return $this->error('Somethings Went Wrong', 500);
+        }
     }
 }
