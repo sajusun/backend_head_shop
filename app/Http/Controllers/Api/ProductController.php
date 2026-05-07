@@ -61,6 +61,10 @@ class ProductController extends Controller
                 $query->where('is_featured', $request->is_featured);
             }
 
+            if ($request->filled('status')) {
+                $query->where('status', $request->query('status'));
+            }
+
             // Sorting
             $sort = $request->query('sort', 'latest');
             switch ($sort) {
@@ -104,6 +108,7 @@ class ProductController extends Controller
                 'description' => 'nullable|string',
                 'price' => 'required|numeric',
                 'offer_price' => 'nullable|numeric',
+                'stock' => 'nullable|integer|min:0',
                 'amenities' => 'nullable|array',
                 'variants' => 'nullable|array',
                 'variants.*.color_id' => 'required_with:variants|exists:colors,id',
@@ -124,7 +129,7 @@ class ProductController extends Controller
 
         try {
             $product = DB::transaction(function () use ($request) {
-                $data = $request->except('images', 'variants');
+                $data = $request->except('images', 'variants', '_method');
                 $data['slug'] = Str::slug($data['name']);
 
                 // Ensure slug uniqueness
@@ -214,6 +219,7 @@ class ProductController extends Controller
                 'description' => 'nullable|string',
                 'price' => 'numeric',
                 'offer_price' => 'nullable|numeric',
+                'stock' => 'nullable|integer|min:0',
                 'amenities' => 'nullable|array',
                 'variants' => 'nullable|array',
                 'variants.*.id' => 'nullable|exists:product_variants,id',
@@ -225,19 +231,36 @@ class ProductController extends Controller
                 'variants.*.status' => 'nullable|in:published,draft',
                 'is_featured' => 'boolean',
                 'status' => 'in:published,draft',
+                'images' => 'nullable|array',
+                'images.*' => 'image|mimes:jpeg,png,jpg,gif,svg|max:2048',
             ]);
 
             if ($validator->fails()) {
                 return $this->error('Validation error', 422, $validator->errors()->toArray());
             }
 
-            $data = $request->except('variants');
+            $data = $request->except('images', 'variants', '_method');
             if (isset($data['name'])) {
                 $data['slug'] = Str::slug($data['name']);
             }
 
             DB::transaction(function () use ($product, $data, $request) {
                 $product->update($data);
+
+                if ($request->hasFile('images')) {
+                    $hasPrimaryImage = $product->images()->where('is_primary', true)->exists();
+
+                    foreach ($request->file('images') as $index => $image) {
+                        $path = $this->uploadFile($image, 'products');
+
+                        ProductImage::create([
+                            'product_id' => $product->id,
+                            'path' => $path,
+                            'is_primary' => !$hasPrimaryImage && $index === 0,
+                            'order' => (int) $product->images()->max('order') + $index + 1,
+                        ]);
+                    }
+                }
 
                 if ($request->filled('variants')) {
                     foreach ($request->variants as $variant) {

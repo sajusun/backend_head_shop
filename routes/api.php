@@ -77,6 +77,9 @@ Route::group(['prefix' => 'admin', 'middleware' => ['auth:api', 'admin']], funct
 
     // User Management
     Route::get('/users', [AdminController::class, 'getAllUsers']);
+    Route::post('/users', [AdminController::class, 'storeUser']);
+    Route::put('/users/{id}', [AdminController::class, 'updateUser']);
+    Route::delete('/users/{id}', [AdminController::class, 'deleteUser']);
 
     // Newsletter Management
     Route::get('/newsletter', [NewsletterController::class, 'index']);

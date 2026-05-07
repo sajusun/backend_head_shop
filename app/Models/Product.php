@@ -19,6 +19,7 @@ class Product extends Model
         'description',
         'price',
         'offer_price',
+        'stock',
         'amenities',
         'is_featured',
         'status',
@@ -28,6 +29,7 @@ class Product extends Model
         'is_featured' => 'boolean',
         'price' => 'decimal:2',
         'offer_price' => 'decimal:2',
+        'stock' => 'integer',
         'amenities' => 'array',
     ];
 

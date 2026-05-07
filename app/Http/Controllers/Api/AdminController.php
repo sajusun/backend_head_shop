@@ -10,6 +10,7 @@ use App\Models\Blog;
 use App\Traits\ApiResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 
 class AdminController extends Controller
@@ -90,8 +91,106 @@ class AdminController extends Controller
     public function getAllUsers(Request $request)
     {
         try {
-            $users = User::latest()->paginate($request->query('per_page', 20));
+            $query = User::query();
+
+            if ($request->filled('search')) {
+                $search = $request->query('search');
+                $query->where(function ($q) use ($search) {
+                    $q->where('name', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%")
+                        ->orWhere('phone', 'like', "%{$search}%");
+                });
+            }
+
+            if ($request->filled('role')) {
+                $query->where('role', $request->query('role'));
+            }
+
+            $users = $query->latest()->paginate($request->query('per_page', 20));
             return $this->success('Successfully retrieve', $users->items(), true, $users);
+        } catch (\Throwable $th) {
+            Log::info($th->getMessage());
+            return $this->error('Somethings Went Wrong', 500);
+        }
+    }
+
+    public function storeUser(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'name' => 'required|string|max:100',
+            'email' => 'required|email|max:100|unique:users,email',
+            'password' => 'required|string|min:6',
+            'role' => 'required|in:admin,user',
+            'phone' => 'nullable|string|max:30',
+        ]);
+
+        if ($validator->fails()) {
+            return $this->error('Validation error', 422, $validator->errors()->toArray());
+        }
+
+        try {
+            $data = $validator->validated();
+            $data['password'] = Hash::make($data['password']);
+            $data['email_verified_at'] = now();
+
+            $user = User::create($data);
+
+            return $this->success('User created successfully', $user, false, null, true, 201);
+        } catch (\Throwable $th) {
+            Log::info($th->getMessage());
+            return $this->error('Somethings Went Wrong', 500);
+        }
+    }
+
+    public function updateUser(Request $request, string $id)
+    {
+        try {
+            $user = User::findOrFail($id);
+
+            $validator = Validator::make($request->all(), [
+                'name' => 'sometimes|required|string|max:100',
+                'email' => 'sometimes|required|email|max:100|unique:users,email,' . $id,
+                'password' => 'nullable|string|min:6',
+                'role' => 'sometimes|required|in:admin,user',
+                'phone' => 'nullable|string|max:30',
+            ]);
+
+            if ($validator->fails()) {
+                return $this->error('Validation error', 422, $validator->errors()->toArray());
+            }
+
+            $data = $validator->validated();
+            if (empty($data['password'])) {
+                unset($data['password']);
+            } else {
+                $data['password'] = Hash::make($data['password']);
+            }
+
+            $user->update($data);
+
+            return $this->success('User updated successfully', $user);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return $this->error('User not found', 404);
+        } catch (\Throwable $th) {
+            Log::info($th->getMessage());
+            return $this->error('Somethings Went Wrong', 500);
+        }
+    }
+
+    public function deleteUser(string $id)
+    {
+        try {
+            $user = User::findOrFail($id);
+
+            if ($user->id === auth('api')->id()) {
+                return $this->error('You cannot delete your own admin account', 422);
+            }
+
+            $user->delete();
+
+            return $this->success('User deleted successfully');
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return $this->error('User not found', 404);
         } catch (\Throwable $th) {
             Log::info($th->getMessage());
             return $this->error('Somethings Went Wrong', 500);

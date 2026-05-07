@@ -19,8 +19,13 @@ class ProductResource extends JsonResource
             'price' => (float) $this->price,
             'offer_price' => $this->offer_price !== null ? (float) $this->offer_price : null,
             'effective_price' => (float) ($this->offer_price ?? $this->price),
+            'stock' => (int) ($this->stock ?? $this->whenLoaded('variants', fn () => $this->variants->sum('stock'), 0)),
             'is_featured' => (bool) $this->is_featured,
             'status' => $this->status,
+            'primary_image' => $this->relationLoaded('primaryImage') && $this->primaryImage ? [
+                'id' => $this->primaryImage->id,
+                'image_path' => asset('storage/' . $this->primaryImage->path),
+            ] : null,
             'rating' => [
                 'average' => round((float) ($this->approved_reviews_avg_rating ?? 0), 2),
                 'count' => (int) ($this->approved_reviews_count ?? 0),
