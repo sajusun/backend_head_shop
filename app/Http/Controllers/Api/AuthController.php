@@ -49,7 +49,14 @@ class AuthController extends Controller
                 'role' => 'user',
             ]);
 
-            return $this->success('User successfully registered', $user, false, null, true, 201);
+            $token = auth('api')->login($user);
+
+            return $this->success('User successfully registered', [
+                'access_token' => $token,
+                'token_type' => 'bearer',
+                'expires_in' => auth('api')->factory()->getTTL() * 60,
+                'user' => $user,
+            ], false, null, true, 201);
         } catch (\Throwable $th) {
             Log::info($th->getMessage());
             return $this->error('Somethings Went Wrong', 500);

@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BlogController;
 use App\Http\Controllers\Api\AdminController;
 use App\Http\Controllers\Api\OrderController;
+use App\Http\Controllers\Api\ReviewController;
 use App\Http\Controllers\Api\CommentController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\CategoryController;
@@ -26,6 +27,7 @@ Route::get('categories', [CategoryController::class, 'index']);
 Route::get('categories/{id}', [CategoryController::class, 'show']);
 Route::get('products', [ProductController::class, 'index']);
 Route::get('products/{slug}', [ProductController::class, 'showBySlug']);
+Route::get('reviews/{productId}', [ReviewController::class, 'index']);
 
 
 Route::group(['middleware' => ['auth:api', 'admin']], function() {
@@ -36,6 +38,13 @@ Route::group(['middleware' => ['auth:api', 'admin']], function() {
     Route::post('products', [ProductController::class, 'store']);
     Route::put('products/{id}', [ProductController::class, 'update']);
     Route::delete('products/{id}', [ProductController::class, 'destroy']);
+
+});
+
+Route::group(['middleware' => ['auth:api']], function() {
+    Route::post('reviews', [ReviewController::class, 'store']);
+    Route::post('reviews/{reviewId}/replies', [ReviewController::class, 'storeReply']);
+    Route::delete('reviews/{id}', [ReviewController::class, 'destroy']);
 });
 
 // Order API
