@@ -59,6 +59,7 @@ Route::group(['middleware' => ['auth:api']], function() {
 Route::apiResource('orders', OrderController::class)->only(['index', 'store', 'show']);
 
 // Blog & Comment API
+Route::get('blogs/slug/{slug}', [BlogController::class, 'showBySlug']);
 Route::apiResource('blogs', BlogController::class);
 Route::post('blogs/{id}/like', [BlogController::class, 'toggleLike'])->middleware('auth:api');
 Route::apiResource('comments', CommentController::class)->only(['index', 'store', 'update', 'destroy']);

@@ -105,6 +105,34 @@ class BlogController extends Controller
             // Increment views
             $blog->increment('views_count');
 
+            // Add is_liked flag
+            $userId = auth('api')->id();
+            $blog->is_liked = $userId ? $blog->likedBy()->where('user_id', $userId)->exists() : false;
+
+            return $this->success('Successfully retrieve', $blog);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return $this->error('Blog not found', 404);
+        } catch (\Throwable $th) {
+            Log::info($th->getMessage());
+            return $this->error('Somethings Went Wrong', 500);
+        }
+    }
+
+    /**
+     * Display the specified resource by slug.
+     */
+    public function showBySlug(string $slug)
+    {
+        try {
+            $blog = Blog::with(['author', 'category', 'comments.user'])->where('slug', $slug)->firstOrFail();
+
+            // Increment views
+            $blog->increment('views_count');
+
+            // Add is_liked flag
+            $userId = auth('api')->id();
+            $blog->is_liked = $userId ? $blog->likedBy()->where('user_id', $userId)->exists() : false;
+
             return $this->success('Successfully retrieve', $blog);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return $this->error('Blog not found', 404);
