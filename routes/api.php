@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\NewsletterController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\PaymentController;
+use App\Http\Controllers\Api\ContactController;
 
 Route::group(['middleware' => 'api','prefix' => 'auth'], function ($router) {
     Route::post('/register', [AuthController::class, 'register']);
@@ -74,6 +75,9 @@ Route::group(['prefix' => 'notifications', 'middleware' => 'auth:api'], function
 Route::post('/newsletter/subscribe', [NewsletterController::class, 'subscribe']);
 Route::post('/newsletter/unsubscribe', [NewsletterController::class, 'unsubscribe']);
 
+// Contact API (Public)
+Route::post('/contact', [ContactController::class, 'store']);
+
 // Admin Only Routes
 Route::group(['prefix' => 'admin', 'middleware' => ['auth:api', 'admin']], function() {
     Route::get('/dashboard-stats', [AdminController::class, 'getDashboardStats']);
@@ -92,6 +96,12 @@ Route::group(['prefix' => 'admin', 'middleware' => ['auth:api', 'admin']], funct
     // Newsletter Management
     Route::get('/newsletter', [NewsletterController::class, 'index']);
     Route::delete('/newsletter/{id}', [NewsletterController::class, 'destroy']);
+
+    // Contact Message Management
+    Route::get('/contact-messages', [ContactController::class, 'index']);
+    Route::get('/contact-messages/{id}', [ContactController::class, 'show']);
+    Route::post('/contact-messages/{id}/reply', [ContactController::class, 'reply']);
+    Route::delete('/contact-messages/{id}', [ContactController::class, 'destroy']);
 
     // Blog Management
     Route::get('/blogs', [AdminController::class, 'getAllBlogs']);
