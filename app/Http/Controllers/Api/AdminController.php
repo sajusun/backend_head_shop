@@ -43,10 +43,24 @@ class AdminController extends Controller
     public function getAllOrders(Request $request)
     {
         try {
-            $query = Order::with(['user', 'items.product']);
+            $query = Order::with(['user', 'items.product.primaryImage', 'items.productVariant.color', 'items.productVariant.size']);
 
             if ($request->filled('status')) {
                 $query->where('status', $request->status);
+            }
+
+            if ($request->filled('payment_status')) {
+                $query->where('payment_status', $request->payment_status);
+            }
+
+            if ($request->filled('search')) {
+                $search = $request->search;
+                $query->where(function ($q) use ($search) {
+                    $q->where('order_number', 'like', "%{$search}%")
+                        ->orWhere('full_name', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%")
+                        ->orWhere('phone', 'like', "%{$search}%");
+                });
             }
 
             $orders = $query->latest()->paginate($request->query('per_page', 20));
@@ -77,6 +91,22 @@ class AdminController extends Controller
             $order->update($validator->validated());
 
             return $this->success('Order updated successfully', $order);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return $this->error('Order not found', 404);
+        } catch (\Throwable $th) {
+            Log::info($th->getMessage());
+            return $this->error('Somethings Went Wrong', 500);
+        }
+    }
+
+    /**
+     * Get single order details.
+     */
+    public function getOrderDetails(string $id)
+    {
+        try {
+            $order = Order::with(['user', 'items.product.primaryImage', 'items.productVariant.color', 'items.productVariant.size'])->findOrFail($id);
+            return $this->success('Successfully retrieve', $order);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return $this->error('Order not found', 404);
         } catch (\Throwable $th) {

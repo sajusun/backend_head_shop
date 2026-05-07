@@ -73,6 +73,7 @@ Route::group(['prefix' => 'admin', 'middleware' => ['auth:api', 'admin']], funct
 
     // Order Management
     Route::get('/orders', [AdminController::class, 'getAllOrders']);
+    Route::get('/orders/{id}', [AdminController::class, 'getOrderDetails']);
     Route::put('/orders/{id}/status', [AdminController::class, 'updateOrderStatus']);
 
     // User Management
