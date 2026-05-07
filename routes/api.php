@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\NewsletterController;
 use App\Http\Controllers\Api\NotificationController;
+use App\Http\Controllers\Api\PaymentController;
 
 Route::group(['middleware' => 'api','prefix' => 'auth'], function ($router) {
     Route::post('/register', [AuthController::class, 'register']);
@@ -20,6 +21,12 @@ Route::group(['middleware' => 'api','prefix' => 'auth'], function ($router) {
     Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:api');
     Route::post('/refresh', [AuthController::class, 'refresh'])->middleware('auth:api');
     Route::get('/user-profile', [AuthController::class, 'userProfile'])->middleware('auth:api');
+});
+
+// Payment Routes
+Route::middleware('auth:api')->group(function () {
+    Route::post('/payments/stripe/initiate', [PaymentController::class, 'initiateStripePayment']);
+    Route::post('/payments/sslcommerz/initiate', [PaymentController::class, 'initiateSSLCommerzPayment']);
 });
 
 // Product & Category API (Public read, Admin write)
