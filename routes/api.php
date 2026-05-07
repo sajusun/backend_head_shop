@@ -4,19 +4,16 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 use App\Http\Controllers\Api\AuthController;
-use App\Http\Controllers\Api\CategoryController;
-use App\Http\Controllers\Api\ProductController;
-use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\BlogController;
-use App\Http\Controllers\Api\CommentController;
-use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\AdminController;
+use App\Http\Controllers\Api\OrderController;
+use App\Http\Controllers\Api\CommentController;
+use App\Http\Controllers\Api\ProductController;
+use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\NewsletterController;
+use App\Http\Controllers\Api\NotificationController;
 
-Route::group([
-    'middleware' => 'api',
-    'prefix' => 'auth'
-], function ($router) {
+Route::group(['middleware' => 'api','prefix' => 'auth'], function ($router) {
     Route::post('/register', [AuthController::class, 'register']);
     Route::post('/login', [AuthController::class, 'login']);
     Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:api');
@@ -29,6 +26,7 @@ Route::get('categories', [CategoryController::class, 'index']);
 Route::get('categories/{id}', [CategoryController::class, 'show']);
 Route::get('products', [ProductController::class, 'index']);
 Route::get('products/{id}', [ProductController::class, 'show']);
+
 
 Route::group(['middleware' => ['auth:api', 'admin']], function() {
     Route::post('categories', [CategoryController::class, 'store']);
@@ -63,16 +61,16 @@ Route::post('/newsletter/unsubscribe', [NewsletterController::class, 'unsubscrib
 // Admin Only Routes
 Route::group(['prefix' => 'admin', 'middleware' => ['auth:api', 'admin']], function() {
     Route::get('/dashboard-stats', [AdminController::class, 'getDashboardStats']);
-    
+
     // Order Management
     Route::get('/orders', [AdminController::class, 'getAllOrders']);
     Route::put('/orders/{id}/status', [AdminController::class, 'updateOrderStatus']);
-    
+
     // User Management
     Route::get('/users', [AdminController::class, 'getAllUsers']);
-    
+
     // Newsletter Management
     Route::get('/newsletter', [NewsletterController::class, 'index']);
-    
+
     // Add more admin routes here (e.g., manage settings)
 });
