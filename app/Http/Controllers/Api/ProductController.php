@@ -1,74 +1,84 @@
-<?php 
+<?php
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Controller;
 use App\Models\Product;
+use App\Traits\ApiResponse;
+use App\Traits\UploadTrait;
+use Illuminate\Support\Str;
 use App\Models\ProductImage;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
-use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
-
-use App\Traits\UploadTrait;
+use Illuminate\Support\Facades\Log;
+use App\Http\Controllers\Controller;
+use Illuminate\Support\Facades\Validator;
 
 class ProductController extends Controller
 {
     use UploadTrait;
+    use ApiResponse;
     /**
      * Display a listing of the resource.
      */
     public function index(Request $request)
     {
-        $query = Product::with(['category', 'primaryImage']);
+        $perPage = $request->input('per_page', 16);
+        $currentPage = $request->input('current_page', 1);
 
-        // Filtering by Category
-        if ($request->has('category')) {
-            $query->whereHas('category', function($q) use ($request) {
-                $q->where('slug', $request->category);
-            });
+        try {
+            $query = Product::with(['category', 'primaryImage']);
+
+            // Filtering by Category
+            if ($request->has('category')) {
+                $query->whereHas('category', function ($q) use ($request) {
+                    $q->where('slug', $request->category);
+                });
+            }
+
+            // Search by Name or SKU
+            if ($request->has('search')) {
+                $search = $request->search;
+                $query->where(function ($q) use ($search) {
+                    $q->where('name', 'like', "%{$search}%")
+                        ->orWhere('sku', 'like', "%{$search}%");
+                });
+            }
+
+            // Price Range
+            if ($request->has('min_price')) {
+                $query->where('price', '>=', $request->min_price);
+            }
+            if ($request->has('max_price')) {
+                $query->where('price', '<=', $request->max_price);
+            }
+
+            // Featured
+            if ($request->has('is_featured')) {
+                $query->where('is_featured', $request->is_featured);
+            }
+
+            // Sorting
+            $sort = $request->query('sort', 'latest');
+            switch ($sort) {
+                case 'price_low':
+                    $query->orderBy('price', 'asc');
+                    break;
+                case 'price_high':
+                    $query->orderBy('price', 'desc');
+                    break;
+                case 'latest':
+                default:
+                    $query->latest();
+                    break;
+            }
+
+            $products = $query->paginate($perPage, '*', 'page', $currentPage);
+
+            return $this->success('Successfully retrieve', $products->items(), true, $products);
+        } catch (\Throwable $th) {
+            Log::info($th->getMessage());
+            return $this->error("Somethings Went Wrong");
         }
-
-        // Search by Name or SKU
-        if ($request->has('search')) {
-            $search = $request->search;
-            $query->where(function($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('sku', 'like', "%{$search}%");
-            });
-        }
-
-        // Price Range
-        if ($request->has('min_price')) {
-            $query->where('price', '>=', $request->min_price);
-        }
-        if ($request->has('max_price')) {
-            $query->where('price', '<=', $request->max_price);
-        }
-
-        // Featured
-        if ($request->has('is_featured')) {
-            $query->where('is_featured', $request->is_featured);
-        }
-
-        // Sorting
-        $sort = $request->query('sort', 'latest');
-        switch ($sort) {
-            case 'price_low':
-                $query->orderBy('price', 'asc');
-                break;
-            case 'price_high':
-                $query->orderBy('price', 'desc');
-                break;
-            case 'latest':
-            default:
-                $query->latest();
-                break;
-        }
-
-        $products = $query->paginate($request->query('per_page', 24));
-
-        return response()->json($products);
     }
 
     /**
@@ -95,10 +105,10 @@ class ProductController extends Controller
             return response()->json($validator->errors(), 422);
         }
 
-        return DB::transaction(function() use ($request) {
+        return DB::transaction(function () use ($request) {
             $data = $request->except('images');
             $data['slug'] = Str::slug($data['name']);
-            
+
             // Ensure slug uniqueness
             $count = Product::where('slug', 'like', $data['slug'] . '%')->count();
             if ($count > 0) {
@@ -115,7 +125,7 @@ class ProductController extends Controller
             if ($request->hasFile('images')) {
                 foreach ($request->file('images') as $index => $image) {
                     $path = $this->uploadFile($image, 'products');
-                    
+
                     ProductImage::create([
                         'product_id' => $product->id,
                         'image_path' => $path,

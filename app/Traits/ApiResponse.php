@@ -9,7 +9,7 @@ trait ApiResponse
     /**
      * JSON Success Response
      */
-    public function success(bool $status, string $message, int $code, mixed $data = null, bool $paginate = false, mixed $paginateData = null): JsonResponse
+    public function success(string $message, mixed $data = null, bool $paginate = false, mixed $paginateData = null, $status=true, $code=200): JsonResponse
     {
 
         $response = [
