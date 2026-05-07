@@ -7,6 +7,7 @@ use App\Traits\ApiResponse;
 use App\Traits\UploadTrait;
 use Illuminate\Support\Str;
 use App\Models\ProductImage;
+use App\Models\ProductVariant;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -26,7 +27,9 @@ class ProductController extends Controller
         $currentPage = $request->input('current_page', 1);
 
         try {
-            $query = Product::with(['category', 'primaryImage']);
+            $query = Product::with(['category', 'primaryImage', 'variants.color', 'variants.size'])
+                ->withCount('approvedReviews')
+                ->withAvg('approvedReviews', 'rating');
 
             // Filtering by Category
             if ($request->has('category')) {
@@ -87,20 +90,26 @@ class ProductController extends Controller
      */
     public function store(Request $request)
     {
-        $validator = Validator::make($request->all(), [
-            'category_id' => 'required|exists:categories,id',
-            'name' => 'required|string|max:255',
-            'sku' => 'nullable|string|unique:products,sku',
-            'description' => 'nullable|string',
-            'price' => 'required|numeric',
-            'offer_price' => 'nullable|numeric',
-            'stock' => 'required|integer',
-            'variants' => 'nullable|json',
-            'is_featured' => 'boolean',
-            'status' => 'in:active,inactive',
-            'images' => 'nullable|array',
-            'images.*' => 'image|mimes:jpeg,png,jpg,gif,svg|max:2048',
-        ]);
+            $validator = Validator::make($request->all(), [
+                'category_id' => 'required|exists:categories,id',
+                'name' => 'required|string|max:255',
+                'sku' => 'nullable|string|unique:products,sku',
+                'thumbnail' => 'nullable|string',
+                'description' => 'nullable|string',
+                'price' => 'required|numeric',
+                'offer_price' => 'nullable|numeric',
+                'variants' => 'nullable|array',
+                'variants.*.color_id' => 'required_with:variants|exists:colors,id',
+                'variants.*.size_id' => 'required_with:variants|exists:sizes,id',
+                'variants.*.price' => 'required_with:variants|numeric|min:0',
+                'variants.*.offer_price' => 'nullable|numeric|min:0',
+                'variants.*.stock' => 'required_with:variants|integer|min:0',
+                'variants.*.status' => 'nullable|in:published,draft',
+                'is_featured' => 'boolean',
+                'status' => 'in:published,draft',
+                'images' => 'nullable|array',
+                'images.*' => 'image|mimes:jpeg,png,jpg,gif,svg|max:2048',
+            ]);
 
         if ($validator->fails()) {
             return $this->error('Validation error', 422, $validator->errors()->toArray());
@@ -108,7 +117,7 @@ class ProductController extends Controller
 
         try {
             $product = DB::transaction(function () use ($request) {
-                $data = $request->except('images');
+                $data = $request->except('images', 'variants');
                 $data['slug'] = Str::slug($data['name']);
 
                 // Ensure slug uniqueness
@@ -130,14 +139,20 @@ class ProductController extends Controller
 
                         ProductImage::create([
                             'product_id' => $product->id,
-                            'image_path' => $path,
+                            'path' => $path,
                             'is_primary' => $index === 0,
-                            'sort_order' => $index,
+                            'order' => $index,
                         ]);
                     }
                 }
 
-                return $product->load('images');
+                if ($request->filled('variants')) {
+                    foreach ($request->variants as $variant) {
+                        $product->variants()->create($variant);
+                    }
+                }
+
+                return $product->load(['images', 'variants.color', 'variants.size']);
             });
 
             return $this->success('Product created successfully', $product, false, null, true, 201);
@@ -153,7 +168,17 @@ class ProductController extends Controller
     public function show(string $id)
     {
         try {
-            $product = Product::with(['category', 'images', 'reviews.user'])->findOrFail($id);
+            $product = Product::with([
+                'category',
+                'images',
+                'variants.color',
+                'variants.size',
+                'approvedReviews.user',
+                'approvedReviews.approvedReplies',
+            ])
+                ->withCount('approvedReviews')
+                ->withAvg('approvedReviews', 'rating')
+                ->findOrFail($id);
             return $this->success('Successfully retrieve', $product);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return $this->error('Product not found', 404);
@@ -175,27 +200,51 @@ class ProductController extends Controller
                 'category_id' => 'exists:categories,id',
                 'name' => 'string|max:255',
                 'sku' => 'nullable|string|unique:products,sku,' . $id,
+                'thumbnail' => 'nullable|string',
                 'description' => 'nullable|string',
                 'price' => 'numeric',
                 'offer_price' => 'nullable|numeric',
-                'stock' => 'integer',
-                'variants' => 'nullable|json',
+                'variants' => 'nullable|array',
+                'variants.*.id' => 'nullable|exists:product_variants,id',
+                'variants.*.color_id' => 'required_with:variants|exists:colors,id',
+                'variants.*.size_id' => 'required_with:variants|exists:sizes,id',
+                'variants.*.price' => 'required_with:variants|numeric|min:0',
+                'variants.*.offer_price' => 'nullable|numeric|min:0',
+                'variants.*.stock' => 'required_with:variants|integer|min:0',
+                'variants.*.status' => 'nullable|in:published,draft',
                 'is_featured' => 'boolean',
-                'status' => 'in:active,inactive',
+                'status' => 'in:published,draft',
             ]);
 
             if ($validator->fails()) {
                 return $this->error('Validation error', 422, $validator->errors()->toArray());
             }
 
-            $data = $request->all();
+            $data = $request->except('variants');
             if (isset($data['name'])) {
                 $data['slug'] = Str::slug($data['name']);
             }
 
-            $product->update($data);
+            DB::transaction(function () use ($product, $data, $request) {
+                $product->update($data);
 
-            return $this->success('Product updated successfully', $product);
+                if ($request->filled('variants')) {
+                    foreach ($request->variants as $variant) {
+                        $variantId = $variant['id'] ?? null;
+                        unset($variant['id']);
+
+                        if ($variantId) {
+                            ProductVariant::where('product_id', $product->id)
+                                ->where('id', $variantId)
+                                ->update($variant);
+                        } else {
+                            $product->variants()->create($variant);
+                        }
+                    }
+                }
+            });
+
+            return $this->success('Product updated successfully', $product->load(['images', 'variants.color', 'variants.size']));
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return $this->error('Product not found', 404);
         } catch (\Throwable $th) {

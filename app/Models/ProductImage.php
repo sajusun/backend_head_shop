@@ -11,9 +11,9 @@ class ProductImage extends Model
 
     protected $fillable = [
         'product_id',
-        'image_path',
+        'path',
         'is_primary',
-        'sort_order',
+        'order',
     ];
 
     protected $casts = [
@@ -23,5 +23,10 @@ class ProductImage extends Model
     public function product()
     {
         return $this->belongsTo(Product::class);
+    }
+
+    public function scopePrimary($query)
+    {
+        return $query->where('is_primary', true);
     }
 }

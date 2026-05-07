@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
+use App\Models\ProductVariant;
 use App\Traits\ApiResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -23,7 +24,7 @@ class OrderController extends Controller
     {
         try {
             $orders = Order::where('user_id', auth('api')->id())
-                ->with(['items.product'])
+                ->with(['items.product', 'items.productVariant.color', 'items.productVariant.size'])
                 ->latest()
                 ->paginate(10);
 
@@ -50,6 +51,7 @@ class OrderController extends Controller
             'payment_method' => 'required|string',
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'required|exists:products,id',
+            'items.*.product_variant_id' => 'nullable|exists:product_variants,id',
             'items.*.quantity' => 'required|integer|min:1',
             'items.*.selected_color' => 'nullable|string',
             'items.*.selected_size' => 'nullable|string',
@@ -66,27 +68,39 @@ class OrderController extends Controller
 
                 foreach ($request->items as $itemData) {
                     $product = Product::findOrFail($itemData['product_id']);
+                    $variant = null;
 
-                    // Stock Validation
-                    if ($product->stock < $itemData['quantity']) {
+                    if (!empty($itemData['product_variant_id'])) {
+                        $variant = ProductVariant::with(['color', 'size'])
+                            ->where('product_id', $product->id)
+                            ->findOrFail($itemData['product_variant_id']);
+                    } elseif ($product->variants()->exists()) {
+                        throw new \Exception("Please select a variant for product: {$product->name}");
+                    }
+
+                    if ($variant && $variant->stock < $itemData['quantity']) {
                         throw new \Exception("Insufficient stock for product: {$product->name}");
                     }
 
-                    $price = $product->offer_price ?? $product->price;
+                    $price = $variant
+                        ? ($variant->offer_price ?? $variant->price)
+                        : ($product->offer_price ?? $product->price);
                     $lineTotal = $price * $itemData['quantity'];
                     $subtotal += $lineTotal;
 
                     $orderItems[] = [
                         'product_id' => $product->id,
+                        'product_variant_id' => $variant?->id,
                         'quantity' => $itemData['quantity'],
                         'price' => $price,
-                        'selected_color' => $itemData['selected_color'] ?? null,
-                        'selected_size' => $itemData['selected_size'] ?? null,
+                        'selected_color' => $variant?->color?->name ?? $itemData['selected_color'] ?? null,
+                        'selected_size' => $variant?->size?->name ?? $itemData['selected_size'] ?? null,
                         'other_variants' => null,
                     ];
 
-                    // Update Stock
-                    $product->decrement('stock', $itemData['quantity']);
+                    if ($variant) {
+                        $variant->decrement('stock', $itemData['quantity']);
+                    }
                 }
 
                 $shippingCost = 0; // Can be dynamic based on city/weight
@@ -117,7 +131,7 @@ class OrderController extends Controller
                     OrderItem::create($item);
                 }
 
-                return $order->load('items.product');
+                return $order->load(['items.product', 'items.productVariant.color', 'items.productVariant.size']);
             });
 
             return $this->success('Order placed successfully', $order, false, null, true, 201);
@@ -136,7 +150,7 @@ class OrderController extends Controller
     public function show(string $id)
     {
         try {
-            $order = Order::with(['items.product'])
+            $order = Order::with(['items.product', 'items.productVariant.color', 'items.productVariant.size'])
                 ->where('id', $id)
                 ->where(function ($q) {
                     $q->where('user_id', auth('api')->id())

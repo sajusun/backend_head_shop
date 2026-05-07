@@ -21,12 +21,10 @@ return new class extends Migration
             $table->longText('description')->nullable();
             $table->decimal('price', 10, 2);
             $table->decimal('offer_price', 10, 2)->nullable();
-            $table->integer('stock')->default(0);
-            $table->json('variants')->nullable();
+            // $table->integer('stock')->default(0);
+            // $table->json('variants')->nullable();
             $table->boolean('is_featured')->default(false);
-            $table->enum('status', ['active', 'inactive'])->default('active');
-            $table->decimal('rating_avg', 3, 2)->default(0.00);
-            $table->integer('reviews_count')->default(0);
+            $table->string('status')->default('published')->comment('draft');
             $table->timestamps();
             $table->softDeletes();
         });

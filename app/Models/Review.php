@@ -18,6 +18,10 @@ class Review extends Model
         'parent_id',
     ];
 
+    protected $casts = [
+        'rating' => 'integer',
+    ];
+
     public function product()
     {
         return $this->belongsTo(Product::class);
@@ -35,6 +39,21 @@ class Review extends Model
 
     public function replies()
     {
-        return $this->hasMany(Review::class, 'parent_id');
+        return $this->hasMany(Review::class, 'parent_id')->with('user');
+    }
+
+    public function approvedReplies()
+    {
+        return $this->hasMany(Review::class, 'parent_id')->where('status', 'approved')->with('user');
+    }
+
+    public function scopeApproved($query)
+    {
+        return $query->where('status', 'approved');
+    }
+
+    public function scopeParentsOnly($query)
+    {
+        return $query->whereNull('parent_id');
     }
 }

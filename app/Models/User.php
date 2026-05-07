@@ -76,4 +76,14 @@ class User extends Authenticatable implements JWTSubject
             'password' => 'hashed',
         ];
     }
+
+    public function reviews()
+    {
+        return $this->hasMany(Review::class);
+    }
+
+    public function favoriteProducts()
+    {
+        return $this->belongsToMany(Product::class, 'favorites');
+    }
 }

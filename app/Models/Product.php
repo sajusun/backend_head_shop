@@ -15,23 +15,18 @@ class Product extends Model
         'name',
         'slug',
         'sku',
+        'thumbnail',
         'description',
         'price',
         'offer_price',
-        'stock',
-        'variants',
         'is_featured',
         'status',
-        'rating_avg',
-        'reviews_count',
     ];
 
     protected $casts = [
-        'variants' => 'json',
         'is_featured' => 'boolean',
         'price' => 'decimal:2',
         'offer_price' => 'decimal:2',
-        'rating_avg' => 'decimal:2',
     ];
 
     public function category()
@@ -41,17 +36,27 @@ class Product extends Model
 
     public function images()
     {
-        return $this->hasMany(ProductImage::class);
+        return $this->hasMany(ProductImage::class)->orderBy('order');
     }
 
     public function primaryImage()
     {
-        return $this->hasOne(ProductImage::class)->where('is_primary', true);
+        return $this->hasOne(ProductImage::class)->where('is_primary', true)->oldest('order');
+    }
+
+    public function variants()
+    {
+        return $this->hasMany(ProductVariant::class);
     }
 
     public function reviews()
     {
         return $this->hasMany(Review::class);
+    }
+
+    public function approvedReviews()
+    {
+        return $this->hasMany(Review::class)->where('status', 'approved')->whereNull('parent_id');
     }
 
     public function tags()

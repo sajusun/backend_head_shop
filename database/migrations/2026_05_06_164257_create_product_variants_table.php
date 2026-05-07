@@ -10,12 +10,12 @@ return new class extends Migration {
         Schema::create('product_variants', function (Blueprint $table) {
             $table->id();
             $table->foreignId('product_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('color_id')->constrained('colors');
-            $table->foreignId('size_id')->constrained('sizes');
+            $table->foreignId('color_id')->constrained()->restrictOnDelete();
+            $table->foreignId('size_id')->constrained()->restrictOnDelete();
             $table->decimal('price', 10, 2);
             $table->decimal('offer_price', 10, 2)->nullable();
             $table->unsignedInteger('stock')->default(0);
-            $table->boolean('is_active')->default(true);
+            $table->string('status')->default('published')->comment('draft');
             $table->timestamps();
 
             $table->unique(['product_id', 'color_id', 'size_id']);
