@@ -182,22 +182,14 @@ class ProductController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(string $id)
+    public function showBySlug(Request $request, string $slug)
     {
         try {
-            $product = Product::with([
-                'category',
-                'images',
-                'amenityItems',
-                'variants.color',
-                'variants.size',
-                'approvedReviews.user',
-                'approvedReviews.approvedReplies',
-            ])
-                ->withCount('approvedReviews')
-                ->withAvg('approvedReviews', 'rating')
-                ->findOrFail($id);
-            return $this->success('Successfully retrieve', ProductResource::make($product)->resolve(request()));
+            $product = $this->detailsQuery()
+                ->where('slug', $slug)
+                ->firstOrFail();
+
+            return $this->success('Successfully retrieve', ProductResource::make($product)->resolve($request));
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return $this->error('Product not found', 404);
         } catch (\Throwable $th) {
@@ -293,5 +285,22 @@ class ProductController extends Controller
             Log::info($th->getMessage());
             return $this->error('Somethings Went Wrong', 500);
         }
+    }
+
+    private function detailsQuery()
+    {
+        return Product::query()
+            ->with([
+                'category',
+                'primaryImage',
+                'images',
+                'amenityItems',
+                'variants.color',
+                'variants.size',
+                'approvedReviews.user',
+                'approvedReviews.approvedReplies.user',
+            ])
+            ->withCount('approvedReviews')
+            ->withAvg('approvedReviews', 'rating');
     }
 }

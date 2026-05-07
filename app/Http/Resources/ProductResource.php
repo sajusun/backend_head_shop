@@ -14,8 +14,7 @@ class ProductResource extends JsonResource
             'name' => $this->name,
             'slug' => $this->slug,
             'sku' => $this->sku,
-            'thumbnail' => $this->thumbnail,
-            'thumbnail_url' => $this->thumbnail ? asset('storage/' . $this->thumbnail) : null,
+            'thumbnail' => $this->thumbnailPath(),
             'description' => $this->description,
             'price' => (float) $this->price,
             'offer_price' => $this->offer_price !== null ? (float) $this->offer_price : null,
@@ -27,13 +26,23 @@ class ProductResource extends JsonResource
                 'count' => (int) ($this->approved_reviews_count ?? 0),
             ],
             'category' => new CategoryResource($this->whenLoaded('category')),
-            'primary_image' => new ProductImageResource($this->whenLoaded('primaryImage')),
-            'images' => ProductImageResource::collection($this->whenLoaded('images')),
+            'images' => $this->whenLoaded(
+                'images',
+                fn () => ProductImageResource::collection($this->images->where('is_primary', false)->values())->resolve($request),
+                []
+            ),
             'variants' => ProductVariantResource::collection($this->whenLoaded('variants')),
             'amenities' => $this->relationLoaded('amenityItems')
                 ? AmenityResource::collection($this->amenityItems)
                 : ($this->amenities ?? []),
             'reviews' => ReviewResource::collection($this->whenLoaded('approvedReviews')),
         ];
+    }
+
+    private function thumbnailPath(): ?string
+    {
+        $path = $this->relationLoaded('primaryImage') ? $this->primaryImage?->path : $this->thumbnail;
+
+        return $path ? asset('storage/' . $path) : null;
     }
 }

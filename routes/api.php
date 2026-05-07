@@ -25,7 +25,7 @@ Route::group(['middleware' => 'api','prefix' => 'auth'], function ($router) {
 Route::get('categories', [CategoryController::class, 'index']);
 Route::get('categories/{id}', [CategoryController::class, 'show']);
 Route::get('products', [ProductController::class, 'index']);
-Route::get('products/{id}', [ProductController::class, 'show']);
+Route::get('products/{slug}', [ProductController::class, 'showBySlug']);
 
 
 Route::group(['middleware' => ['auth:api', 'admin']], function() {
