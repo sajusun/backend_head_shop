@@ -23,9 +23,10 @@ class CategoryController extends Controller
             $categories = Category::with('children')
                 ->where('type', $type)
                 ->whereNull('parent_id')
-                ->get();
-
-            return $this->success('Successfully retrieve', $categories);
+                ->latest()
+                ->paginate($request->query('per_page', 20));
+            
+            return $this->success('Successfully retrieve', $categories->items(), true, $categories);
         } catch (\Throwable $th) {
             Log::info($th->getMessage());
             return $this->error('Somethings Went Wrong', 500);

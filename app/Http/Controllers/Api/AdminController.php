@@ -32,6 +32,20 @@ class AdminController extends Controller
                 'pending_orders' => Order::where('status', 'pending')->count(),
                 'published_blogs' => Blog::where('status', 'published')->count(),
                 'recent_orders' => Order::with('user')->latest()->take(5)->get(),
+                'chart_data' => Order::selectRaw('DATE(created_at) as date, SUM(total_amount) as total')
+                    ->where('payment_status', 'paid')
+                    ->where('created_at', '>=', now()->subDays(7))
+                    ->groupBy('date')
+                    ->orderBy('date')
+                    ->get()
+                    ->map(fn($item) => [
+                        'name' => \Carbon\Carbon::parse($item->date)->format('D'),
+                        'sales' => (float)$item->total,
+                    ]),
+                'product_stats' => [
+                    'active' => Product::where('status', 'published')->count(),
+                    'draft' => Product::where('status', 'draft')->count(),
+                ]
             ];
 
             return $this->success('Successfully retrieve', $stats);
