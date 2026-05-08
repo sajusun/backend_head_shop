@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use PHPOpenSourceSaver\JWTAuth\Facades\JWTAuth;
+use Illuminate\Support\Facades\Storage;
 
 class AuthController extends Controller
 {
@@ -125,10 +126,59 @@ class AuthController extends Controller
     public function userProfile()
     {
         try {
-            return $this->success('Successfully retrieve', auth('api')->user());
+            $user = auth('api')->user();
+            if ($user) {
+                $user->refresh();
+            }
+
+            return $this->success('Successfully retrieve', $user);
         } catch (\Throwable $th) {
             Log::info($th->getMessage());
             return $this->error('Somethings Went Wrong', 500);
+        }
+    }
+
+    /**
+     * Update the authenticated user's profile.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function updateProfile(Request $request)
+    {
+        $user = auth('api')->user();
+
+        $validator = Validator::make($request->all(), [
+            'name' => 'required|string|between:2,100',
+            'phone' => 'nullable|string|max:20',
+            'bio' => 'nullable|string|max:1000',
+            'avatar' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120', // 2MB Max
+        ]);
+
+        if ($validator->fails()) {
+            return $this->error('Validation error', 422, $validator->errors()->toArray());
+        }
+
+        try {
+            $data = $request->only('name', 'phone', 'bio');
+
+            if ($request->hasFile('avatar')) {
+                // Delete old avatar if it exists and is not a default/external URL
+                if ($user->avatar && !str_starts_with($user->avatar, 'http')) {
+                    Storage::disk('public')->delete(str_replace('/storage/', '', $user->avatar));
+                }
+
+                $path = $request->file('avatar')->store('avatars', 'public');
+                $data['avatar'] = Storage::url($path);
+            }
+
+            $user->update($data);
+            $user->refresh();
+            
+            return $this->success('Profile updated successfully', $user);
+        } catch (\Throwable $th) {
+            Log::error('Profile Update Error: ' . $th->getMessage());
+            return $this->error('Failed to update profile', 500);
         }
     }
 

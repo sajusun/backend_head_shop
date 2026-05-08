@@ -16,6 +16,7 @@ use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\ContactController;
 use App\Http\Controllers\Api\AttributeController;
+use App\Http\Controllers\Api\PasswordResetController;
 
 Route::group(['middleware' => 'api','prefix' => 'auth'], function ($router) {
     Route::post('/register', [AuthController::class, 'register']);
@@ -23,6 +24,11 @@ Route::group(['middleware' => 'api','prefix' => 'auth'], function ($router) {
     Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:api');
     Route::post('/refresh', [AuthController::class, 'refresh'])->middleware('auth:api');
     Route::get('/user-profile', [AuthController::class, 'userProfile'])->middleware('auth:api');
+    Route::post('/profile', [AuthController::class, 'updateProfile'])->middleware('auth:api');
+    
+    // Password Reset
+    Route::post('/forgot-password', [PasswordResetController::class, 'sendResetLinkEmail']);
+    Route::post('/reset-password', [PasswordResetController::class, 'reset']);
 });
 
 // Payment Routes

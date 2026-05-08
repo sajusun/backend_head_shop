@@ -11,12 +11,32 @@ use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Laravel\Sanctum\HasApiTokens;
 
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use PHPOpenSourceSaver\JWTAuth\Contracts\JWTSubject;
 
 class User extends Authenticatable implements JWTSubject
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable, SoftDeletes, HasApiTokens;
+
+    /**
+     * Get the user's avatar URL.
+     *
+     * @return \Illuminate\Database\Eloquent\Casts\Attribute
+     */
+    protected function avatar(): Attribute
+    {
+        return Attribute::make(
+            get: function ($value) {
+                if (!$value) return null;
+                if (str_starts_with($value, 'http')) return $value;
+                
+                // Ensure the path starts with a single slash
+                $path = '/' . ltrim($value, '/');
+                return url($path);
+            }
+        );
+    }
 
     /**
      * Get the identifier that will be stored in the subject claim of the JWT.
@@ -52,6 +72,7 @@ class User extends Authenticatable implements JWTSubject
         'role',
         'avatar',
         'phone',
+        'bio',
         'email_verified_at',
     ];
 
