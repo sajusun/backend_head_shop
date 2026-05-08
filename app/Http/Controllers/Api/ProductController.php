@@ -25,7 +25,7 @@ class ProductController extends Controller
     public function index(Request $request)
     {
         $perPage = $request->input('per_page', 16);
-        $currentPage = $request->input('current_page', 1);
+        $currentPage = $request->input('page', 1);
 
         try {
             $query = Product::with(['category', 'primaryImage', 'images', 'variants.color', 'variants.size', 'amenityItems'])
