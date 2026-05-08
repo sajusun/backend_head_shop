@@ -46,7 +46,12 @@ class ProductResource extends JsonResource
 
     private function thumbnailPath(): ?string
     {
-        $path = $this->relationLoaded('primaryImage') ? $this->primaryImage?->path : $this->thumbnail;
+        $path = $this->thumbnail;
+
+        // Fallback to primary image from gallery if thumbnail column is empty
+        if (!$path && $this->relationLoaded('primaryImage')) {
+            $path = $this->primaryImage?->path;
+        }
 
         return $path ? asset('storage/' . $path) : null;
     }

@@ -28,7 +28,7 @@ class ProductController extends Controller
         $currentPage = $request->input('current_page', 1);
 
         try {
-            $query = Product::with(['category', 'primaryImage', 'variants.color', 'variants.size', 'amenityItems'])
+            $query = Product::with(['category', 'primaryImage', 'images', 'variants.color', 'variants.size', 'amenityItems'])
                 ->withCount('approvedReviews')
                 ->withAvg('approvedReviews', 'rating');
 
@@ -156,7 +156,7 @@ class ProductController extends Controller
                         ProductImage::create([
                             'product_id' => $product->id,
                             'path' => $path,
-                            'is_primary' => $index === 0,
+                            'is_primary' => false,
                             'order' => $index,
                         ]);
                     }
@@ -171,8 +171,8 @@ class ProductController extends Controller
                     }
                 }
                 
-                if ($request->filled('amenities')) {
-                    $product->amenityItems()->sync($request->amenities);
+                if ($request->has('amenities')) {
+                    $product->amenityItems()->sync($request->amenities ?? []);
                 }
 
                 return $product
@@ -271,7 +271,7 @@ class ProductController extends Controller
                         ProductImage::create([
                             'product_id' => $product->id,
                             'path' => $path,
-                            'is_primary' => !$hasPrimaryImage && $index === 0,
+                            'is_primary' => false,
                             'order' => (int) $product->images()->max('order') + $index + 1,
                         ]);
                     }
