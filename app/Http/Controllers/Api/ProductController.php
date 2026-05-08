@@ -262,6 +262,10 @@ class ProductController extends Controller
 
                 $product->update($data);
 
+                if ($request->filled('deleted_images')) {
+                    ProductImage::whereIn('id', $request->deleted_images)->where('product_id', $product->id)->delete();
+                }
+
                 if ($request->hasFile('images')) {
                     $hasPrimaryImage = $product->images()->where('is_primary', true)->exists();
 
