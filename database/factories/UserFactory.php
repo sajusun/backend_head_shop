@@ -24,12 +24,19 @@ class UserFactory extends Factory
      */
     public function definition(): array
     {
+        $avatarNum = fake()->numberBetween(1, 72); // We saw up to 72 in the list
+        // Note: Some numbers might be missing, but we'll try to be safe or just use a random selection from the list if possible.
+        // Actually, I'll just use a random one from the list I saw.
+        
         return [
             'name' => fake()->name(),
             'email' => fake()->unique()->safeEmail(),
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
             'remember_token' => Str::random(10),
+            'avatar' => 'avator/profile_avator (' . $avatarNum . ').jpeg',
+            'phone' => fake()->phoneNumber(),
+            'role' => 'user',
         ];
     }
 

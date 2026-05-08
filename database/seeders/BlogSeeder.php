@@ -6,6 +6,7 @@ use App\Models\Blog;
 use App\Models\Category;
 use App\Models\User;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 
 class BlogSeeder extends Seeder
@@ -17,82 +18,139 @@ class BlogSeeder extends Seeder
             $admin = User::factory()->create(['role' => 'admin', 'name' => 'Admin User']);
         }
 
+        $users = User::where('role', 'user')->get();
+        if ($users->isEmpty()) {
+            $users = User::factory()->count(10)->create();
+        }
+
         $categories = [
-            'Tech Trends',
-            'Lifestyle',
-            'Fashion Tips',
-            'Health & Wellness',
-            'Product Reviews',
-            'Company News',
+            'Electrical' => 'latest-tech-and-electrical-innovation',
+            'Fashion' => 'fashion-trends-and-style-guides',
+            'About Site' => 'inside-herd-shop-our-journey',
+            'Celebrity' => 'celebrity-lifestyle-and-spotlight',
+            'Food' => 'culinary-adventures-and-recipes',
+            'Environment' => 'sustainability-and-green-living',
         ];
 
         $blogCategories = [];
-        foreach ($categories as $catName) {
-            $blogCategories[] = Category::updateOrCreate(
-                ['slug' => Str::slug($catName)],
+        foreach ($categories as $name => $slug) {
+            $blogCategories[$name] = Category::updateOrCreate(
+                ['slug' => $slug],
                 [
-                    'name' => $catName,
+                    'name' => $name,
                     'type' => 'blog',
                     'status' => 'active',
                 ]
             );
         }
 
-        $titles = [
-            '10 Ways to Improve Your Daily Routine',
-            'The Future of Sustainable Fashion',
-            'How to Choose the Perfect Gadget for Your Home',
-            'Mastering the Art of Minimalist Living',
-            'Top 5 Destinations for Your Summer Vacation',
-            'Understanding the Basics of Modern Interior Design',
-            'The Ultimate Guide to Healthy Eating',
-            'Why Quality Matters in Every Purchase',
-            'The Evolution of E-commerce in 2026',
-            'Building a Productive Workspace at Home',
-            'Skincare Secrets for a Radiant Glow',
-            'How to Style Your Wardrobe for Every Occasion',
-            'The Impact of Technology on Modern Sports',
-            'Essential Tips for First-Time Home Buyers',
-            'The Joy of Slow Living in a Fast-Paced World',
-            'Creative Ways to Use Your Old Electronics',
-            'A Deep Dive into Organic Fabrics',
-            'Fitness Motivation: How to Stay Consistent',
-            'The Best Books to Read This Year',
-            'Transforming Your Backyard into an Oasis',
-            'Smart Home Devices You Actually Need',
-            'The Rise of Personalized Shopping Experiences',
-            'Eco-Friendly Gift Ideas for Your Loved Ones',
-            'Navigating the World of Online Reviews',
-            'The Importance of Mental Health Awareness',
-            'Exploring the Hidden Gems of Your City',
-            'How to Prepare Your Car for a Long Road Trip',
-            'The Art of Gifting: Making Every Moment Special',
-            'Latest Trends in Wearable Technology',
-            'Finding Balance in Your Work-Life Journey',
+        $themes = [
+            'Electrical' => [
+                'The Revolution of Smart Home Electrical Systems',
+                'Top 10 Energy-Saving Gadgets for 2026',
+                'Understanding Voltage: A Guide for Homeowners',
+                'Future of Wireless Power Transmission',
+                'Electrical Safety Tips Every Family Should Know',
+                'The Rise of Electric Vehicles and Home Charging',
+                'Solar Power: Integrating Renewable Energy at Home',
+                'High-Tech Wiring Solutions for Modern Offices',
+            ],
+            'Fashion' => [
+                'Sustainable Fabrics: The Future of Fashion',
+                'Accessorizing Like a Pro: A Summer Guide',
+                'The Return of Vintage: 90s Trends We Love',
+                'Building a Capsule Wardrobe on a Budget',
+                'Fashion Week Highlights: Global Trends to Watch',
+                'The Art of Minimalist Dressing',
+                'Choosing the Right Fabric for Every Season',
+                'Footwear Essentials for the Urban Professional',
+            ],
+            'About Site' => [
+                'Welcome to Herd Shop: Our Mission and Vision',
+                'Behind the Scenes: How We Source Our Products',
+                'Customer Spotlight: Why They Choose Herd Shop',
+                'Our Commitment to Quality and Sustainability',
+                'Expanding Our Reach: New Categories Coming Soon',
+                'A Message from Our Founder',
+            ],
+            'Celebrity' => [
+                'Iconic Fashion Moments on the Red Carpet',
+                'Celebrity Homes: A Peak into Luxury Living',
+                'Top 5 Celebrity Entrepreneurs of the Year',
+                'Influence and Impact: Celebs Driving Social Change',
+                'Secret Routines of Successful Celebrities',
+                'Hollywood Style: From Screen to Street',
+            ],
+            'Food' => [
+                'Exploring the Flavors of Mediterranean Cuisine',
+                'Quick and Healthy Breakfast Ideas for Busy Mornings',
+                'The Science of Baking: Tips for Perfect Results',
+                'Farm to Table: The Importance of Local Sourcing',
+                'Superfoods You Should Add to Your Diet Today',
+                'Mastering the Art of Homemade Pasta',
+                'Coffee Culture: A Global Journey',
+            ],
+            'Environment' => [
+                'Reducing Your Carbon Footprint: Simple Steps',
+                'Zero Waste Living: A Beginner\'s Guide',
+                'The Impact of Plastic on Our Oceans',
+                'Urban Gardening: Growing Food in Small Spaces',
+                'Eco-Friendly Travel: Exploring Responsibly',
+                'The Importance of Biodiversity in Our Ecosystem',
+            ],
         ];
 
-        foreach ($titles as $index => $title) {
-            $slug = Str::slug($title);
-            
-            // Check if slug exists
-            $existingCount = Blog::where('slug', 'like', $slug . '%')->count();
-            if ($existingCount > 0) {
-                $slug = $slug . '-' . ($index + 1);
-            }
+        $imageDirectory = public_path('storage/products_images');
+        $allImages = File::isDirectory($imageDirectory) ? File::files($imageDirectory) : [];
+        $imagePaths = collect($allImages)->map(fn ($image) => 'products_images/' . $image->getFilename());
 
-            Blog::create([
+        $postCount = 45;
+        $themeNames = array_keys($themes);
+
+        for ($i = 0; $i < $postCount; $i++) {
+            $theme = $themeNames[$i % count($themeNames)];
+            $title = $themes[$theme][array_rand($themes[$theme])] . " " . ($i + 1);
+            $slug = Str::slug($title) . '-' . uniqid();
+            
+            $content = "<h2>Introduction</h2><p>In this article, we explore the fascinating world of {$theme}. Specifically, we'll dive deep into <strong>{$title}</strong>.</p>";
+            $content .= "<p>" . fake()->paragraphs(3, true) . "</p>";
+            $content .= "<blockquote>" . fake()->sentence() . "</blockquote>";
+            $content .= "<h3>Key Insights</h3><p>" . fake()->paragraphs(4, true) . "</p>";
+            $content .= "<h4>Conclusion</h4><p>" . fake()->paragraphs(2, true) . "</p>";
+
+            $blog = Blog::create([
                 'author_id' => $admin->id,
-                'category_id' => $blogCategories[array_rand($blogCategories)]->id,
+                'category_id' => $blogCategories[$theme]->id,
                 'title' => $title,
                 'slug' => $slug,
-                'excerpt' => 'This is a brief overview of the article titled "' . $title . '". Learn more about the latest trends and insights in this comprehensive guide.',
-                'content' => '<h3>Introduction</h3><p>Welcome to our deep dive into ' . $title . '. In today\'s world, staying informed is more important than ever.</p><p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</p><h4>Why It Matters</h4><p>Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p><p>Curabitur pretium tincidunt lacus. Nulla gravida orci a odio. Nullam varius, turpis et commodo pharetra, est eros bibendum elit, nec luctus magna felis sollicitudin mauris. Integer in mauris eu nibh euismod gravida. Duis ac tellus et risus vulputate vehicula. Donec lobortis risus a elit. Etiam tempor. Ut ullamcorper, ligula eu tempor congue, eros est euismod turpis, id tincidunt sapien risus a quam. Maecenas fermentum consequat mi. Donec fermentum. Pellentesque malesuada nulla a mi. Duis sapien sem, aliquet nec, commodo eget, consequat quis, neque. Aliquam faucibus, elit ut dictum aliquet, felis nisl adipiscing sapien, sed malesuada diam lacus eget erat. Cras mollis scelerisque nunc. Donec vehicula cursus purus.</p><blockquote>"Knowledge is power, but sharing it is even more powerful."</blockquote><p>In conclusion, ' . $title . ' is a topic that continues to evolve. We hope this guide provides you with the clarity you need to move forward.</p>',
-                'featured_image' => 'https://picsum.photos/seed/' . $slug . '/800/600',
-                'status' => $index < 25 ? 'published' : 'draft',
-                'likes_count' => rand(10, 500),
-                'views_count' => rand(100, 2000),
-                'published_at' => $index < 25 ? now()->subDays(rand(1, 30)) : null,
+                'excerpt' => fake()->sentence(20),
+                'content' => $content,
+                'featured_image' => $imagePaths->random(),
+                'status' => 'published',
+                'likes_count' => 0, // Will be updated by likes
+                'views_count' => rand(100, 5000),
+                'published_at' => now()->subDays(rand(1, 100)),
             ]);
+
+            // Add Likes (10-40 per post)
+            $likeCount = rand(10, 40);
+            $shuffledUsers = $users->shuffle();
+            $likers = $shuffledUsers->take($likeCount);
+            
+            foreach ($likers as $user) {
+                $blog->likedBy()->attach($user->id);
+            }
+            $blog->update(['likes_count' => $likeCount]);
+
+            // Add Comments (5-20 per post)
+            $commentCount = rand(5, 20);
+            for ($c = 0; $c < $commentCount; $c++) {
+                $blog->comments()->create([
+                    'user_id' => $shuffledUsers->random()->id,
+                    'content' => fake()->sentence(rand(10, 30)),
+                    'status' => 'approved',
+                ]);
+            }
         }
     }
 }

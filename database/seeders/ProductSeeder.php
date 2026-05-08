@@ -28,49 +28,59 @@ class ProductSeeder extends Seeder
         $images = File::isDirectory($imageDirectory) ? File::files($imageDirectory) : [];
 
         if ($categories->isEmpty() || $colors->isEmpty() || $sizes->isEmpty() || $users->isEmpty() || $amenities->isEmpty() || count($images) === 0) {
-            $this->command?->warn('ProductSeeder skipped: categories, colors, sizes, users, amenities, and product images are required.');
+            $this->command?->warn('ProductSeeder skipped: missing dependencies.');
             return;
         }
 
-        $imagePaths = collect($images)
-            ->map(fn ($image) => 'products_images/' . $image->getFilename())
-            ->sort(SORT_NATURAL)
-            ->values();
+        $allImages = collect($images)->map(fn ($image) => 'products_images/' . $image->getFilename());
+        
+        $categorizedImages = [
+            'Fashion' => $allImages->filter(fn($p) => str_contains($p, 'cloth_fashion') || str_contains($p, 'shirt') || str_contains($p, 'saree'))->values(),
+            'Electronics' => $allImages->filter(fn($p) => str_contains($p, 'electronic') || str_contains($p, 'headphone'))->values(),
+            'Home & Living' => $allImages->filter(fn($p) => str_contains($p, 'home_appliance'))->values(),
+        ];
+
+        $fallbackImages = $allImages->filter(fn($p) => str_contains($p, 'products_image'))->values();
+        if ($fallbackImages->isEmpty()) $fallbackImages = $allImages;
 
         $products = $this->products();
 
-        DB::transaction(function () use ($products, $categories, $colors, $sizes, $users, $amenities, $imagePaths) {
+        DB::transaction(function () use ($products, $categories, $colors, $sizes, $users, $amenities, $categorizedImages, $fallbackImages) {
             foreach ($products as $index => $item) {
                 $basePrice = random_int($item['min_price'], $item['max_price']);
                 $offerPrice = random_int(1, 100) <= 45 ? $basePrice - random_int(5, min(80, $basePrice - 1)) : null;
-                $slug = Str::slug($item['name']);
-                $sku = 'HS-' . str_pad((string) ($index + 1), 4, '0', STR_PAD_LEFT);
-                $productImages = $this->pickImages($imagePaths, $index, 3);
+                $slug = Str::slug($item['name']) . '-' . uniqid();
+                $sku = 'HS-' . str_pad((string) ($index + 1), 6, '0', STR_PAD_LEFT);
+                
+                // Pick images based on category
+                $catImages = $categorizedImages[$item['category']] ?? $fallbackImages;
+                if ($catImages->isEmpty()) $catImages = $fallbackImages;
+                
+                $productImages = [];
+                for ($i = 0; $i < 3; $i++) {
+                    $productImages[] = $catImages->random();
+                }
+
                 $productAmenities = $this->amenitiesFor($amenities, $item['category'], $index);
 
-                $product = Product::updateOrCreate(
-                    ['sku' => $sku],
-                    [
-                        'category_id' => $categories[$item['category']]->id,
-                        'name' => $item['name'],
-                        'slug' => $slug,
-                        'thumbnail' => $productImages[0],
-                        'description' => $this->descriptionFor($item['name'], $item['category']),
-                        'price' => $basePrice,
-                        'offer_price' => $offerPrice,
-                        'amenities' => $productAmenities->map(fn (Amenity $amenity) => [
-                            'name' => $amenity->name,
-                            'slug' => $amenity->slug,
-                            'category' => $amenity->category,
-                        ])->values()->all(),
-                        'is_featured' => $index < 18 || $index % 9 === 0,
-                        'status' => 'published',
-                    ]
-                );
+                $product = Product::create([
+                    'category_id' => $categories[$item['category']]->id,
+                    'name' => $item['name'],
+                    'slug' => $slug,
+                    'sku' => $sku,
+                    'thumbnail' => $productImages[0],
+                    'description' => $this->descriptionFor($item['name'], $item['category']),
+                    'price' => $basePrice,
+                    'offer_price' => $offerPrice,
+                    'amenities' => $productAmenities->map(fn (Amenity $amenity) => [
+                        'name' => $amenity->name,
+                        'slug' => $amenity->slug,
+                        'category' => $amenity->category,
+                    ])->values()->all(),
+                    'is_featured' => $index < 20 || $index % 15 === 0,
+                    'status' => 'published',
+                ]);
 
-                $product->images()->delete();
-                $product->variants()->delete();
-                $product->reviews()->delete();
                 $product->amenityItems()->sync($productAmenities->pluck('id')->all());
 
                 foreach ($productImages as $imageIndex => $path) {
@@ -82,36 +92,30 @@ class ProductSeeder extends Seeder
                     ]);
                 }
 
-                $variantCount = random_int(2, 5);
-                $variantCombos = $colors->shuffle()
-                    ->take($variantCount)
-                    ->values()
-                    ->map(fn ($color, $comboIndex) => [
-                        'color_id' => $color->id,
-                        'size_id' => $sizes[($index + $comboIndex) % $sizes->count()]->id,
-                    ]);
-
-                foreach ($variantCombos as $comboIndex => $combo) {
-                    $variantPrice = $basePrice + ($comboIndex * random_int(2, 12));
-
+                $variantCount = random_int(2, 6);
+                $shuffledColors = $colors->shuffle();
+                
+                for ($v = 0; $v < $variantCount; $v++) {
+                    $variantPrice = $basePrice + ($v * random_int(2, 10));
                     $product->variants()->create([
-                        'color_id' => $combo['color_id'],
-                        'size_id' => $combo['size_id'],
+                        'color_id' => $shuffledColors[$v % $shuffledColors->count()]->id,
+                        'size_id' => $sizes->random()->id,
                         'price' => $variantPrice,
-                        'offer_price' => $offerPrice ? max(1, $offerPrice + ($comboIndex * random_int(1, 8))) : null,
-                        'stock' => random_int(8, 120),
+                        'offer_price' => $offerPrice ? max(1, $offerPrice + ($v * random_int(1, 5))) : null,
+                        'stock' => random_int(10, 200),
                         'status' => 'published',
                     ]);
                 }
 
-                $reviewCount = random_int(3, 20);
-
-                for ($reviewIndex = 0; $reviewIndex < $reviewCount; $reviewIndex++) {
+                $reviewCount = random_int(5, 15);
+                $shuffledUsers = $users->shuffle();
+                
+                for ($r = 0; $r < $reviewCount; $r++) {
                     Review::create([
                         'product_id' => $product->id,
-                        'user_id' => $users[($index + $reviewIndex) % $users->count()]->id,
-                        'rating' => random_int(3, 5),
-                        'comment' => $this->reviewComment($reviewIndex),
+                        'user_id' => $shuffledUsers[$r % $shuffledUsers->count()]->id,
+                        'rating' => random_int(4, 5),
+                        'comment' => $this->reviewComment($r),
                         'status' => 'approved',
                     ]);
                 }
@@ -154,124 +158,72 @@ class ProductSeeder extends Seeder
     private function reviewComment(int $index): string
     {
         $comments = [
-            'Good quality for the price and arrived in nice condition.',
-            'Looks exactly as expected and feels reliable for daily use.',
-            'The finish is clean, and the product feels better than average.',
-            'Happy with the purchase. Packaging and delivery were both smooth.',
-            'Useful item, easy to match with the rest of my setup.',
-            'Solid value. I would consider buying another one.',
-            'The product feels premium enough and works well so far.',
-            'Nice design, comfortable to use, and worth the money.',
-            'No complaints. It matched the description and photos.',
-            'A dependable choice if you want something simple and practical.',
+            'Absolutely love this! The quality is even better than expected.',
+            'A bit pricey, but worth every penny for the durability.',
+            'Perfect fit and the color is exactly as shown in the pictures.',
+            'Fast shipping and great packaging. The product works perfectly.',
+            'I have been using this for a week now, and it is holding up great.',
+            'The design is so unique. I get compliments on it all the time.',
+            'Could be better, but for this price point, I am satisfied.',
+            'Highly recommend this to anyone looking for a reliable choice.',
+            'The materials feel very premium. Definitely buying again.',
+            'Great customer service and the product is top-notch.',
+            'Exactly what I needed for my daily routine. Very happy.',
+            'The attention to detail is impressive. Well worth the wait.',
+            'Simple, elegant, and functional. Everything I wanted.',
+            'Exceeded my expectations in every way possible.',
+            'A solid 5-star product. No complaints at all.',
         ];
 
-        return $comments[$index % count($comments)];
+        return $comments[array_rand($comments)];
     }
 
     private function products(): array
     {
-        return [
-            ['category' => 'Fashion', 'name' => 'Classic Cotton T-Shirt', 'min_price' => 18, 'max_price' => 35],
-            ['category' => 'Fashion', 'name' => 'Slim Fit Denim Jeans', 'min_price' => 42, 'max_price' => 95],
-            ['category' => 'Fashion', 'name' => 'Casual Linen Shirt', 'min_price' => 34, 'max_price' => 72],
-            ['category' => 'Fashion', 'name' => 'Everyday Hoodie', 'min_price' => 45, 'max_price' => 110],
-            ['category' => 'Fashion', 'name' => 'Lightweight Bomber Jacket', 'min_price' => 75, 'max_price' => 180],
-            ['category' => 'Fashion', 'name' => 'Pleated Midi Skirt', 'min_price' => 38, 'max_price' => 88],
-            ['category' => 'Fashion', 'name' => 'Tailored Chino Pants', 'min_price' => 42, 'max_price' => 100],
-            ['category' => 'Fashion', 'name' => 'Ribbed Knit Sweater', 'min_price' => 48, 'max_price' => 120],
-            ['category' => 'Fashion', 'name' => 'Athletic Jogger Pants', 'min_price' => 36, 'max_price' => 85],
-            ['category' => 'Fashion', 'name' => 'Formal Oxford Shirt', 'min_price' => 44, 'max_price' => 95],
-            ['category' => 'Electronics', 'name' => 'Wireless Bluetooth Headphones', 'min_price' => 55, 'max_price' => 190],
-            ['category' => 'Electronics', 'name' => 'Smart Fitness Watch', 'min_price' => 70, 'max_price' => 240],
-            ['category' => 'Electronics', 'name' => 'Portable Power Bank', 'min_price' => 24, 'max_price' => 80],
-            ['category' => 'Electronics', 'name' => 'Compact Bluetooth Speaker', 'min_price' => 32, 'max_price' => 130],
-            ['category' => 'Electronics', 'name' => 'Fast Charging USB-C Cable', 'min_price' => 9, 'max_price' => 28],
-            ['category' => 'Electronics', 'name' => 'Noise Cancelling Earbuds', 'min_price' => 65, 'max_price' => 220],
-            ['category' => 'Electronics', 'name' => 'Wireless Charging Pad', 'min_price' => 20, 'max_price' => 65],
-            ['category' => 'Electronics', 'name' => 'HD Webcam', 'min_price' => 38, 'max_price' => 140],
-            ['category' => 'Electronics', 'name' => 'Mechanical Keyboard', 'min_price' => 58, 'max_price' => 180],
-            ['category' => 'Electronics', 'name' => 'Ergonomic Wireless Mouse', 'min_price' => 24, 'max_price' => 95],
-            ['category' => 'Home & Living', 'name' => 'Ceramic Dinner Plate Set', 'min_price' => 30, 'max_price' => 95],
-            ['category' => 'Home & Living', 'name' => 'Soft Cotton Bed Sheet', 'min_price' => 40, 'max_price' => 120],
-            ['category' => 'Home & Living', 'name' => 'Decorative Throw Pillow', 'min_price' => 18, 'max_price' => 55],
-            ['category' => 'Home & Living', 'name' => 'Modern Table Lamp', 'min_price' => 45, 'max_price' => 160],
-            ['category' => 'Home & Living', 'name' => 'Nonstick Cookware Set', 'min_price' => 80, 'max_price' => 260],
-            ['category' => 'Home & Living', 'name' => 'Bamboo Storage Basket', 'min_price' => 22, 'max_price' => 75],
-            ['category' => 'Home & Living', 'name' => 'Scented Soy Candle', 'min_price' => 12, 'max_price' => 38],
-            ['category' => 'Home & Living', 'name' => 'Wall Mounted Shelf', 'min_price' => 28, 'max_price' => 110],
-            ['category' => 'Home & Living', 'name' => 'Microfiber Bath Towel Set', 'min_price' => 24, 'max_price' => 80],
-            ['category' => 'Home & Living', 'name' => 'Glass Food Storage Jars', 'min_price' => 18, 'max_price' => 60],
-            ['category' => 'Beauty', 'name' => 'Hydrating Face Serum', 'min_price' => 18, 'max_price' => 70],
-            ['category' => 'Beauty', 'name' => 'Matte Liquid Lipstick', 'min_price' => 10, 'max_price' => 35],
-            ['category' => 'Beauty', 'name' => 'Daily Sunscreen Lotion', 'min_price' => 14, 'max_price' => 45],
-            ['category' => 'Beauty', 'name' => 'Gentle Facial Cleanser', 'min_price' => 12, 'max_price' => 40],
-            ['category' => 'Beauty', 'name' => 'Nourishing Hair Oil', 'min_price' => 9, 'max_price' => 32],
-            ['category' => 'Beauty', 'name' => 'Volumizing Mascara', 'min_price' => 12, 'max_price' => 42],
-            ['category' => 'Beauty', 'name' => 'Rose Water Toner', 'min_price' => 8, 'max_price' => 30],
-            ['category' => 'Beauty', 'name' => 'Moisturizing Body Butter', 'min_price' => 16, 'max_price' => 48],
-            ['category' => 'Beauty', 'name' => 'Makeup Brush Set', 'min_price' => 22, 'max_price' => 90],
-            ['category' => 'Beauty', 'name' => 'Repairing Night Cream', 'min_price' => 20, 'max_price' => 85],
-            ['category' => 'Sports', 'name' => 'Yoga Mat With Carry Strap', 'min_price' => 22, 'max_price' => 70],
-            ['category' => 'Sports', 'name' => 'Adjustable Dumbbell Pair', 'min_price' => 55, 'max_price' => 180],
-            ['category' => 'Sports', 'name' => 'Running Training Shoes', 'min_price' => 60, 'max_price' => 180],
-            ['category' => 'Sports', 'name' => 'Breathable Gym Towel', 'min_price' => 10, 'max_price' => 32],
-            ['category' => 'Sports', 'name' => 'Stainless Steel Water Bottle', 'min_price' => 14, 'max_price' => 45],
-            ['category' => 'Sports', 'name' => 'Resistance Band Set', 'min_price' => 16, 'max_price' => 55],
-            ['category' => 'Sports', 'name' => 'Cycling Safety Helmet', 'min_price' => 38, 'max_price' => 130],
-            ['category' => 'Sports', 'name' => 'Football Training Ball', 'min_price' => 18, 'max_price' => 65],
-            ['category' => 'Sports', 'name' => 'Quick Dry Sports Shorts', 'min_price' => 20, 'max_price' => 60],
-            ['category' => 'Sports', 'name' => 'Fitness Grip Gloves', 'min_price' => 12, 'max_price' => 45],
-            ['category' => 'Groceries', 'name' => 'Organic Basmati Rice', 'min_price' => 12, 'max_price' => 35],
-            ['category' => 'Groceries', 'name' => 'Extra Virgin Olive Oil', 'min_price' => 14, 'max_price' => 45],
-            ['category' => 'Groceries', 'name' => 'Premium Green Tea', 'min_price' => 8, 'max_price' => 28],
-            ['category' => 'Groceries', 'name' => 'Natural Honey Jar', 'min_price' => 9, 'max_price' => 30],
-            ['category' => 'Groceries', 'name' => 'Whole Grain Pasta', 'min_price' => 4, 'max_price' => 18],
-            ['category' => 'Groceries', 'name' => 'Crunchy Peanut Butter', 'min_price' => 6, 'max_price' => 22],
-            ['category' => 'Groceries', 'name' => 'Mixed Dry Fruit Pack', 'min_price' => 12, 'max_price' => 45],
-            ['category' => 'Groceries', 'name' => 'Arabica Coffee Beans', 'min_price' => 15, 'max_price' => 55],
-            ['category' => 'Groceries', 'name' => 'Breakfast Cereal Box', 'min_price' => 5, 'max_price' => 20],
-            ['category' => 'Groceries', 'name' => 'Himalayan Pink Salt', 'min_price' => 4, 'max_price' => 16],
-            ['category' => 'Toys', 'name' => 'Wooden Building Blocks', 'min_price' => 18, 'max_price' => 65],
-            ['category' => 'Toys', 'name' => 'Remote Control Racing Car', 'min_price' => 30, 'max_price' => 120],
-            ['category' => 'Toys', 'name' => 'Plush Teddy Bear', 'min_price' => 16, 'max_price' => 55],
-            ['category' => 'Toys', 'name' => 'Educational Puzzle Set', 'min_price' => 12, 'max_price' => 45],
-            ['category' => 'Toys', 'name' => 'Kids Art Supply Kit', 'min_price' => 14, 'max_price' => 50],
-            ['category' => 'Toys', 'name' => 'Mini Basketball Hoop', 'min_price' => 20, 'max_price' => 75],
-            ['category' => 'Toys', 'name' => 'Magnetic Tile Set', 'min_price' => 25, 'max_price' => 95],
-            ['category' => 'Toys', 'name' => 'Doll House Furniture Set', 'min_price' => 28, 'max_price' => 110],
-            ['category' => 'Toys', 'name' => 'Science Experiment Kit', 'min_price' => 18, 'max_price' => 70],
-            ['category' => 'Toys', 'name' => 'Musical Toy Keyboard', 'min_price' => 22, 'max_price' => 85],
-            ['category' => 'Books', 'name' => 'Modern Fiction Paperback', 'min_price' => 8, 'max_price' => 25],
-            ['category' => 'Books', 'name' => 'Personal Finance Guide', 'min_price' => 12, 'max_price' => 35],
-            ['category' => 'Books', 'name' => 'Healthy Cooking Cookbook', 'min_price' => 14, 'max_price' => 42],
-            ['category' => 'Books', 'name' => 'Children Story Collection', 'min_price' => 10, 'max_price' => 30],
-            ['category' => 'Books', 'name' => 'Business Strategy Handbook', 'min_price' => 18, 'max_price' => 55],
-            ['category' => 'Books', 'name' => 'Travel Photography Book', 'min_price' => 16, 'max_price' => 50],
-            ['category' => 'Books', 'name' => 'Mindfulness Journal', 'min_price' => 9, 'max_price' => 28],
-            ['category' => 'Books', 'name' => 'Language Learning Workbook', 'min_price' => 10, 'max_price' => 32],
-            ['category' => 'Books', 'name' => 'Classic Literature Edition', 'min_price' => 12, 'max_price' => 40],
-            ['category' => 'Books', 'name' => 'Tech Career Playbook', 'min_price' => 15, 'max_price' => 48],
-            ['category' => 'Jewelry', 'name' => 'Minimal Gold Bracelet', 'min_price' => 35, 'max_price' => 140],
-            ['category' => 'Jewelry', 'name' => 'Sterling Silver Ring', 'min_price' => 28, 'max_price' => 120],
-            ['category' => 'Jewelry', 'name' => 'Pearl Drop Earrings', 'min_price' => 32, 'max_price' => 130],
-            ['category' => 'Jewelry', 'name' => 'Layered Chain Necklace', 'min_price' => 38, 'max_price' => 160],
-            ['category' => 'Jewelry', 'name' => 'Crystal Pendant Set', 'min_price' => 25, 'max_price' => 100],
-            ['category' => 'Jewelry', 'name' => 'Classic Hoop Earrings', 'min_price' => 18, 'max_price' => 80],
-            ['category' => 'Jewelry', 'name' => 'Adjustable Anklet', 'min_price' => 16, 'max_price' => 65],
-            ['category' => 'Jewelry', 'name' => 'Engraved Couple Rings', 'min_price' => 45, 'max_price' => 180],
-            ['category' => 'Jewelry', 'name' => 'Gemstone Charm Bracelet', 'min_price' => 30, 'max_price' => 125],
-            ['category' => 'Jewelry', 'name' => 'Luxury Watch Strap', 'min_price' => 40, 'max_price' => 150],
-            ['category' => 'Automotive', 'name' => 'Car Phone Mount', 'min_price' => 12, 'max_price' => 40],
-            ['category' => 'Automotive', 'name' => 'Microfiber Cleaning Cloth Set', 'min_price' => 8, 'max_price' => 28],
-            ['category' => 'Automotive', 'name' => 'Portable Tire Inflator', 'min_price' => 35, 'max_price' => 120],
-            ['category' => 'Automotive', 'name' => 'Leather Steering Wheel Cover', 'min_price' => 18, 'max_price' => 65],
-            ['category' => 'Automotive', 'name' => 'Car Vacuum Cleaner', 'min_price' => 30, 'max_price' => 110],
-            ['category' => 'Automotive', 'name' => 'Dashboard Organizer Tray', 'min_price' => 10, 'max_price' => 35],
-            ['category' => 'Automotive', 'name' => 'LED Headlight Bulb Pair', 'min_price' => 24, 'max_price' => 90],
-            ['category' => 'Automotive', 'name' => 'All Weather Floor Mats', 'min_price' => 38, 'max_price' => 140],
-            ['category' => 'Automotive', 'name' => 'Scratch Repair Pen', 'min_price' => 6, 'max_price' => 20],
-            ['category' => 'Automotive', 'name' => 'Car Emergency Tool Kit', 'min_price' => 28, 'max_price' => 100],
+        $categories = [
+            'Fashion' => ['Classic', 'Modern', 'Casual', 'Formal', 'Trendy', 'Vintage', 'Urban', 'Elegant', 'Premium', 'Basic'],
+            'Electronics' => ['Smart', 'Wireless', 'Portable', 'Digital', 'Pro', 'Elite', 'Next-Gen', 'High-Performance', 'Compact', 'Ultra'],
+            'Home & Living' => ['Modern', 'Cozy', 'Minimalist', 'Luxe', 'Handcrafted', 'Sustainable', 'Rustic', 'Essential', 'Designer', 'Functional'],
+            'Beauty' => ['Natural', 'Pure', 'Organic', 'Glowing', 'Refresh', 'Revitalize', 'Velvet', 'Silk', 'Aura', 'Bloom'],
+            'Sports' => ['Active', 'Power', 'Endurance', 'Flex', 'Speed', 'Agility', 'Extreme', 'Peak', 'Pro-Fit', 'Durable'],
+            'Groceries' => ['Fresh', 'Organic', 'Natural', 'Premium', 'Wholesome', 'Farm-Direct', 'Gourmet', 'Healthy', 'Pure', 'Essential'],
+            'Toys' => ['Fun', 'Creative', 'Educational', 'Magic', 'Adventure', 'Build', 'Play', 'Smart', 'Classic', 'Joy'],
+            'Books' => ['Best-selling', 'Classic', 'Inspiring', 'New Release', 'Limited Edition', 'Collector\'s', 'Educational', 'Masterpiece', 'Essential', 'Must-Read'],
+            'Jewelry' => ['Shining', 'Golden', 'Silver', 'Elegant', 'Precious', 'Luxury', 'Artisan', 'Timeless', 'Brilliant', 'Dazzling'],
+            'Automotive' => ['Reliable', 'Advanced', 'Premium', 'Eco-friendly', 'Universal', 'Sport', 'Heavy-duty', 'Precision', 'Compact', 'Durable'],
         ];
+
+        $productNames = [
+            'Fashion' => ['T-Shirt', 'Jeans', 'Shirt', 'Hoodie', 'Jacket', 'Skirt', 'Pants', 'Sweater', 'Dress', 'Shorts', 'Saree', 'Kurta', 'Blazer'],
+            'Electronics' => ['Headphones', 'Watch', 'Power Bank', 'Speaker', 'Cable', 'Earbuds', 'Webcam', 'Keyboard', 'Mouse', 'Tablet', 'Laptop', 'Camera'],
+            'Home & Living' => ['Dinner Set', 'Bed Sheet', 'Pillow', 'Lamp', 'Cookware', 'Basket', 'Candle', 'Shelf', 'Towel Set', 'Storage Jars', 'Mirror', 'Rug'],
+            'Beauty' => ['Serum', 'Lipstick', 'Sunscreen', 'Cleanser', 'Hair Oil', 'Mascara', 'Toner', 'Body Butter', 'Brush Set', 'Night Cream', 'Perfume', 'Lotion'],
+            'Sports' => ['Yoga Mat', 'Dumbbells', 'Running Shoes', 'Gym Towel', 'Water Bottle', 'Resistance Bands', 'Helmet', 'Football', 'Shorts', 'Gloves', 'Tracksuit'],
+            'Groceries' => ['Rice', 'Olive Oil', 'Green Tea', 'Honey', 'Pasta', 'Peanut Butter', 'Dry Fruit', 'Coffee', 'Cereal', 'Salt', 'Sugar', 'Milk'],
+            'Toys' => ['Building Blocks', 'Racing Car', 'Teddy Bear', 'Puzzle Set', 'Art Kit', 'Basketball Hoop', 'Magnetic Tiles', 'Doll House', 'Science Kit', 'Keyboard'],
+            'Books' => ['Fiction', 'Guide', 'Cookbook', 'Story Collection', 'Handbook', 'Photography Book', 'Journal', 'Workbook', 'Literature', 'Playbook'],
+            'Jewelry' => ['Bracelet', 'Ring', 'Earrings', 'Necklace', 'Pendant', 'Anklet', 'Couple Rings', 'Charm Bracelet', 'Watch Strap', 'Bangle'],
+            'Automotive' => ['Phone Mount', 'Cleaning Cloth', 'Tire Inflator', 'Steering Cover', 'Vacuum Cleaner', 'Organizer', 'Headlight', 'Floor Mats', 'Repair Pen', 'Tool Kit'],
+        ];
+
+        $products = [];
+        $count = 360; // Generate 360 products
+
+        $catKeys = array_keys($categories);
+        
+        for ($i = 0; $i < $count; $i++) {
+            $cat = $catKeys[$i % count($catKeys)];
+            $prefix = $categories[$cat][array_rand($categories[$cat])];
+            $name = $productNames[$cat][array_rand($productNames[$cat])];
+            
+            $products[] = [
+                'category' => $cat,
+                'name' => "{$prefix} {$name} " . ($i + 1),
+                'min_price' => rand(10, 50),
+                'max_price' => rand(60, 300),
+            ];
+        }
+
+        return $products;
     }
 }
