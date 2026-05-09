@@ -24,20 +24,11 @@ class User extends Authenticatable implements JWTSubject
      *
      * @return \Illuminate\Database\Eloquent\Casts\Attribute
      */
-    protected function avatar(): Attribute
-    {
-        return Attribute::make(
-            get: function ($value) {
-                if (!$value) return null;
-                if (str_starts_with($value, 'http')) return $value;
-                
-                // Ensure the path starts with a single slash
-                $path = '/' . ltrim($value, '/');
-                return url($path);
-            }
-        );
-    }
 
+   public function getAvatarAttribute($value)
+    {
+        return $value ? asset($value) : null;
+    }
     /**
      * Get the identifier that will be stored in the subject claim of the JWT.
      *
@@ -84,6 +75,8 @@ class User extends Authenticatable implements JWTSubject
     protected $hidden = [
         'password',
         'remember_token',
+        'two_factor_secret',
+        'two_factor_recovery_codes',
     ];
 
     /**
@@ -96,7 +89,20 @@ class User extends Authenticatable implements JWTSubject
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'two_factor_secret' => 'encrypted',
+            'two_factor_recovery_codes' => 'encrypted:json',
+            'two_factor_confirmed_at' => 'datetime',
         ];
+    }
+
+    /**
+     * Check if 2FA is enabled and confirmed.
+     *
+     * @return bool
+     */
+    public function hasTwoFactorEnabled()
+    {
+        return !is_null($this->two_factor_confirmed_at);
     }
 
     public function reviews()

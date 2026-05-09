@@ -21,10 +21,17 @@ use App\Http\Controllers\Api\PasswordResetController;
 Route::group(['middleware' => 'api','prefix' => 'auth'], function ($router) {
     Route::post('/register', [AuthController::class, 'register']);
     Route::post('/login', [AuthController::class, 'login']);
+    Route::post('/login-2fa', [AuthController::class, 'loginWith2FA']);
     Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:api');
     Route::post('/refresh', [AuthController::class, 'refresh'])->middleware('auth:api');
     Route::get('/user-profile', [AuthController::class, 'userProfile'])->middleware('auth:api');
     Route::post('/profile', [AuthController::class, 'updateProfile'])->middleware('auth:api');
+    Route::post('/change-password', [AuthController::class, 'changePassword'])->middleware('auth:api');
+    
+    // 2FA Routes
+    Route::get('/two-factor-qr', [AuthController::class, 'get2FAQrCode'])->middleware('auth:api');
+    Route::post('/two-factor-confirm', [AuthController::class, 'confirm2FA'])->middleware('auth:api');
+    Route::post('/two-factor-disable', [AuthController::class, 'disable2FA'])->middleware('auth:api');
     
     // Password Reset
     Route::post('/forgot-password', [PasswordResetController::class, 'sendResetLinkEmail']);

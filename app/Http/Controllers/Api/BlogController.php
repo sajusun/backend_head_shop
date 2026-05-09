@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 
 use App\Traits\UploadTrait;
+use App\Http\Resources\BlogResource;
 
 class BlogController extends Controller
 {
@@ -41,7 +42,7 @@ class BlogController extends Controller
 
             $blogs = $query->latest('published_at')->paginate($request->query('per_page', 24));
 
-            return $this->success('Successfully retrieve', $blogs->items(), true, $blogs);
+            return $this->success('Successfully retrieve', BlogResource::collection($blogs), true, $blogs);
         } catch (\Throwable $th) {
             Log::info($th->getMessage());
             return $this->error('Somethings Went Wrong', 500);
@@ -87,7 +88,7 @@ class BlogController extends Controller
 
             $blog = Blog::create($data);
 
-            return $this->success('Blog created successfully', $blog, false, null, true, 201);
+            return $this->success('Blog created successfully', new BlogResource($blog), false, null, true, 201);
         } catch (\Throwable $th) {
             Log::info($th->getMessage());
             return $this->error('Somethings Went Wrong', 500);
@@ -109,7 +110,7 @@ class BlogController extends Controller
             $userId = auth('api')->id();
             $blog->is_liked = $userId ? $blog->likedBy()->where('user_id', $userId)->exists() : false;
 
-            return $this->success('Successfully retrieve', $blog);
+            return $this->success('Successfully retrieve', new BlogResource($blog));
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return $this->error('Blog not found', 404);
         } catch (\Throwable $th) {
@@ -133,7 +134,7 @@ class BlogController extends Controller
             $userId = auth('api')->id();
             $blog->is_liked = $userId ? $blog->likedBy()->where('user_id', $userId)->exists() : false;
 
-            return $this->success('Successfully retrieve', $blog);
+            return $this->success('Successfully retrieve', new BlogResource($blog));
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return $this->error('Blog not found', 404);
         } catch (\Throwable $th) {
@@ -160,7 +161,7 @@ class BlogController extends Controller
                 'title' => 'string|max:255',
                 'excerpt' => 'nullable|string',
                 'content' => 'string',
-                'featured_image' => 'nullable|string',
+                'featured_image' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
                 'status' => 'in:draft,published',
             ]);
 
@@ -168,18 +169,34 @@ class BlogController extends Controller
                 return $this->error('Validation error', 422, $validator->errors()->toArray());
             }
 
-            $data = $validator->validated();
+            $data = $request->except('featured_image');
             if (isset($data['title'])) {
                 $data['slug'] = Str::slug($data['title']);
+                
+                // Ensure slug uniqueness if changed
+                if ($data['slug'] !== $blog->slug) {
+                    $count = Blog::where('slug', 'like', $data['slug'] . '%')->count();
+                    if ($count > 0) {
+                        $data['slug'] = $data['slug'] . '-' . ($count + 1);
+                    }
+                }
             }
 
             if (isset($data['status']) && $data['status'] === 'published' && !$blog->published_at) {
                 $data['published_at'] = now();
             }
 
+            if ($request->hasFile('featured_image')) {
+                // Delete old image if exists
+                if ($blog->featured_image) {
+                    $this->deleteFile($blog->featured_image);
+                }
+                $data['featured_image'] = $this->uploadFile($request->file('featured_image'), 'blogs');
+            }
+
             $blog->update($data);
 
-            return $this->success('Blog updated successfully', $blog);
+            return $this->success('Blog updated successfully', new BlogResource($blog));
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return $this->error('Blog not found', 404);
         } catch (\Throwable $th) {

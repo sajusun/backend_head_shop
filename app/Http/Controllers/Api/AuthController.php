@@ -10,6 +10,12 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use PHPOpenSourceSaver\JWTAuth\Facades\JWTAuth;
 use Illuminate\Support\Facades\Storage;
+use PragmaRX\Google2FA\Google2FA;
+use BaconQrCode\Renderer\Image\SvgImageBackEnd;
+use BaconQrCode\Renderer\ImageRenderer;
+use BaconQrCode\Renderer\RendererStyle\RendererStyle;
+use BaconQrCode\Writer;
+use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
@@ -84,7 +90,48 @@ class AuthController extends Controller
             return $this->error('Unauthorized', 401);
         }
 
+        $user = auth('api')->user();
+
+        // Check if 2FA is enabled
+        if ($user->hasTwoFactorEnabled()) {
+            // We don't return the token yet. 
+            // The frontend needs to provide a 2FA code first.
+            return $this->success('2FA challenge required', [
+                'requires_2fa' => true,
+                'email' => $user->email,
+            ]);
+        }
+
         return $this->createNewToken($token);
+    }
+
+    /**
+     * Verify 2FA code during login and issue token.
+     */
+    public function loginWith2FA(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'email' => 'required|email',
+            'password' => 'required|string',
+            'code' => 'required|string',
+        ]);
+
+        if ($validator->fails()) {
+            return $this->error('Validation error', 422, $validator->errors()->toArray());
+        }
+
+        if (!$token = auth('api')->attempt($request->only('email', 'password'))) {
+            return $this->error('Unauthorized', 401);
+        }
+
+        $user = auth('api')->user();
+        $google2fa = new Google2FA();
+
+        if ($google2fa->verifyKey($user->two_factor_secret, $request->code)) {
+            return $this->createNewToken($token);
+        }
+
+        return $this->error('Invalid 2FA code', 422);
     }
 
     /**
@@ -180,6 +227,133 @@ class AuthController extends Controller
             Log::error('Profile Update Error: ' . $th->getMessage());
             return $this->error('Failed to update profile', 500);
         }
+    }
+
+    /**
+     * Change the authenticated user's password.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function changePassword(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'current_password' => 'required',
+            'password' => 'required|string|min:6|confirmed',
+        ]);
+
+        if ($validator->fails()) {
+            return $this->error('Validation error', 422, $validator->errors()->toArray());
+        }
+
+        $user = auth('api')->user();
+
+        if (!Hash::check($request->current_password, $user->password)) {
+            return $this->error('The provided current password does not match your record.', 422, [
+                'current_password' => ['The provided current password does not match your record.']
+            ]);
+        }
+
+        try {
+            $user->update([
+                'password' => Hash::make($request->password)
+            ]);
+
+            return $this->success('Password changed successfully');
+        } catch (\Throwable $th) {
+            Log::error('Password Change Error: ' . $th->getMessage());
+            return $this->error('Failed to change password', 500);
+        }
+    }
+
+    /**
+     * Get 2FA QR Code and Secret.
+     */
+    public function get2FAQrCode(Request $request)
+    {
+        $user = auth('api')->user();
+        $google2fa = new Google2FA();
+
+        // Generate secret if not exists or if not confirmed
+        if (!$user->two_factor_secret || !$user->two_factor_confirmed_at) {
+            $user->two_factor_secret = $google2fa->generateSecretKey();
+            $user->save();
+        }
+
+        $qrCodeUrl = $google2fa->getQRCodeUrl(
+            config('app.name'),
+            $user->email,
+            $user->two_factor_secret
+        );
+
+        // Generate QR Code Image as SVG Data URL
+        $renderer = new ImageRenderer(
+            new RendererStyle(200),
+            new SvgImageBackEnd()
+        );
+        $writer = new Writer($renderer);
+        $qrCodeImage = 'data:image/svg+xml;base64,' . base64_encode($writer->writeString($qrCodeUrl));
+
+        return $this->success('2FA QR Code generated', [
+            'qr_code' => $qrCodeImage,
+            'secret' => $user->two_factor_secret,
+        ]);
+    }
+
+    /**
+     * Confirm and enable 2FA.
+     */
+    public function confirm2FA(Request $request)
+    {
+        $request->validate([
+            'code' => 'required|string',
+        ]);
+
+        $user = auth('api')->user();
+        $google2fa = new Google2FA();
+
+        $verified = $google2fa->verifyKey($user->two_factor_secret, $request->code);
+
+        if ($verified) {
+            $user->two_factor_confirmed_at = now();
+            
+            // Generate recovery codes
+            $recoveryCodes = collect(range(1, 8))->map(function () {
+                return Str::random(10) . '-' . Str::random(10);
+            })->toArray();
+            
+            $user->two_factor_recovery_codes = $recoveryCodes;
+            $user->save();
+
+            return $this->success('2FA enabled successfully', [
+                'recovery_codes' => $recoveryCodes
+            ]);
+        }
+
+        return $this->error('Invalid verification code', 422);
+    }
+
+    /**
+     * Disable 2FA.
+     */
+    public function disable2FA(Request $request)
+    {
+        $request->validate([
+            'current_password' => 'required',
+        ]);
+
+        $user = auth('api')->user();
+
+        if (!Hash::check($request->current_password, $user->password)) {
+            return $this->error('Invalid password', 422);
+        }
+
+        $user->two_factor_secret = null;
+        $user->two_factor_recovery_codes = null;
+        $user->two_factor_confirmed_at = null;
+        $user->save();
+
+        return $this->success('2FA disabled successfully');
     }
 
     /**

@@ -52,4 +52,11 @@ class Blog extends Model
     {
         return $this->belongsToMany(User::class, 'blog_likes');
     }
+
+    protected function featuredImage(): \Illuminate\Database\Eloquent\Casts\Attribute
+    {
+        return \Illuminate\Database\Eloquent\Casts\Attribute::make(
+            get: fn ($value) => $value ? asset('storage/' . $value) : null,
+        );
+    }
 }
