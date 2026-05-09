@@ -13,10 +13,19 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
+use App\Services\RankingService;
 
 class OrderController extends Controller
 {
     use ApiResponse;
+
+    protected $rankingService;
+
+    public function __construct(RankingService $rankingService)
+    {
+        $this->rankingService = $rankingService;
+    }
+
     /**
      * Display a listing of the user's orders.
      */
@@ -75,7 +84,7 @@ class OrderController extends Controller
                             ->where('product_id', $product->id)
                             ->findOrFail($itemData['product_variant_id']);
                     } elseif ($product->variants()->exists()) {
-                        throw new \Exception("Please select a variant for product: {$product->name}");
+                        $variant = $product->variants()->with(['color', 'size'])->first();
                     }
 
                     if ($variant && $variant->stock < $itemData['quantity']) {
@@ -129,6 +138,12 @@ class OrderController extends Controller
                 foreach ($orderItems as $item) {
                     $item['order_id'] = $order->id;
                     OrderItem::create($item);
+
+                    // Increment sales count
+                    $product = Product::find($item['product_id']);
+                    if ($product) {
+                        $this->rankingService->incrementSales($product, $item['quantity']);
+                    }
                 }
 
                 return $order->load(['items.product', 'items.productVariant.color', 'items.productVariant.size']);
