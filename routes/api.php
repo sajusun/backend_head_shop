@@ -17,6 +17,7 @@ use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\ContactController;
 use App\Http\Controllers\Api\AttributeController;
 use App\Http\Controllers\Api\PasswordResetController;
+use App\Http\Controllers\SocialAuthController;
 
 Route::group(['middleware' => 'api','prefix' => 'auth'], function ($router) {
     Route::post('/register', [AuthController::class, 'register']);
