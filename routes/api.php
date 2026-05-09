@@ -137,3 +137,8 @@ Route::group(['prefix' => 'admin', 'middleware' => ['auth:api', 'admin']], funct
 // Settings API (Public)
 Route::get('settings', [\App\Http\Controllers\SettingController::class, 'index']);
 Route::get('settings/group/{group}', [\App\Http\Controllers\SettingController::class, 'getByGroup']);
+
+
+// routes/web.php
+Route::get('/auth/{provider}/redirect',  [SocialAuthController::class, 'redirect'])->name('social.redirect');
+Route::get('/auth/{provider}/callback',  [SocialAuthController::class, 'callback'])->name('social.callback');
