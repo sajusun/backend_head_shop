@@ -75,7 +75,7 @@ class PaymentController extends Controller
                     
                     if ($status === 'ipn') return response('OK', 200);
 
-                    return redirect(config('app.frontend_url') . '/order/success?order=' . $order->order_number);
+                    return redirect(config('app.frontend_url') . '/order/success?order_id=' . $order->id);
                 }
             }
 
