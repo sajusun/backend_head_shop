@@ -14,7 +14,8 @@ class ProductResource extends JsonResource
             'name' => $this->name,
             'slug' => $this->slug,
             'sku' => $this->sku,
-            'thumbnail' => $this->thumbnailPath(),
+            'thumbnail' => $this->thumbnail,
+
             'description' => $this->description,
             'price' => (float) $this->price,
             'offer_price' => $this->offer_price !== null ? (float) $this->offer_price : null,
@@ -22,6 +23,9 @@ class ProductResource extends JsonResource
             'stock' => (int) ($this->stock ?? $this->whenLoaded('variants', fn () => $this->variants->sum('stock'), 0)),
             'is_featured' => (bool) $this->is_featured,
             'status' => $this->status,
+            'views_count' => (int) $this->views_count,
+            'sales_count' => (int) $this->sales_count,
+            'ranking_score' => (float) $this->ranking_score,
             'primary_image' => $this->relationLoaded('primaryImage') && $this->primaryImage ? [
                 'id' => $this->primaryImage->id,
                 'image_path' => asset('storage/' . $this->primaryImage->path),

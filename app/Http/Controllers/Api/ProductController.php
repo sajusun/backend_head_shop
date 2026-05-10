@@ -14,11 +14,20 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Validator;
+use App\Services\RankingService;
 
 class ProductController extends Controller
 {
     use UploadTrait;
     use ApiResponse;
+
+    protected $rankingService;
+
+    public function __construct(RankingService $rankingService)
+    {
+        $this->rankingService = $rankingService;
+    }
+
     /**
      * Display a listing of the resource.
      */
@@ -73,6 +82,10 @@ class ProductController extends Controller
                     break;
                 case 'price_high':
                     $query->orderBy('price', 'desc');
+                    break;
+                case 'trending':
+                case 'recommended':
+                    $query->orderByRank();
                     break;
                 case 'latest':
                 default:
@@ -204,6 +217,9 @@ class ProductController extends Controller
             $product = $this->detailsQuery()
                 ->where('slug', $slug)
                 ->firstOrFail();
+
+            // Increment views
+            $this->rankingService->incrementViews($product);
 
             return $this->success('Successfully retrieve', ProductResource::make($product)->resolve($request));
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {

@@ -101,8 +101,8 @@ class AdminController extends Controller
             $order = Order::findOrFail($id);
 
             $validator = Validator::make($request->all(), [
-                'status' => 'required|in:pending,processing,shipped,delivered,cancelled',
-                'payment_status' => 'in:pending,paid,failed,refunded',
+                'status' => 'sometimes|required|in:pending,processing,shipped,delivered,cancelled',
+                'payment_status' => 'sometimes|required|in:pending,paid,failed,refunded',
             ]);
 
             if ($validator->fails()) {

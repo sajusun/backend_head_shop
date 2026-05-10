@@ -18,6 +18,8 @@ use App\Http\Controllers\Api\ContactController;
 use App\Http\Controllers\Api\AttributeController;
 use App\Http\Controllers\Api\PasswordResetController;
 use App\Http\Controllers\Api\UserPreferenceController;
+use App\Http\Controllers\SocialAuthController;
+use App\Http\Controllers\Api\CartController;
 
 Route::group(['middleware' => 'api','prefix' => 'auth'], function ($router) {
     Route::post('/register', [AuthController::class, 'register']);
@@ -40,10 +42,8 @@ Route::group(['middleware' => 'api','prefix' => 'auth'], function ($router) {
 });
 
 // Payment Routes
-Route::middleware('auth:api')->group(function () {
-    Route::post('/payments/stripe/initiate', [PaymentController::class, 'initiateStripePayment']);
-    Route::post('/payments/sslcommerz/initiate', [PaymentController::class, 'initiateSSLCommerzPayment']);
-});
+Route::post('/payments/initiate', [PaymentController::class, 'initiate'])->middleware('auth:api');
+Route::match(['get', 'post'], '/payments/callback/{gateway}/{status}', [PaymentController::class, 'handleCallback'])->name('payment.callback');
 
 // Product & Category API (Public read, Admin write)
 Route::get('categories', [CategoryController::class, 'index']);
@@ -68,6 +68,14 @@ Route::group(['middleware' => ['auth:api']], function() {
     Route::post('reviews', [ReviewController::class, 'store']);
     Route::post('reviews/{reviewId}/replies', [ReviewController::class, 'storeReply']);
     Route::delete('reviews/{id}', [ReviewController::class, 'destroy']);
+    
+    // Cart Routes
+    Route::get('cart', [CartController::class, 'index']);
+    Route::post('cart', [CartController::class, 'store']);
+    Route::post('cart/sync', [CartController::class, 'sync']);
+    Route::put('cart/{id}', [CartController::class, 'update']);
+    Route::delete('cart/{id}', [CartController::class, 'destroy']);
+    Route::delete('cart/clear', [CartController::class, 'clear']);
 });
 
 // Order API

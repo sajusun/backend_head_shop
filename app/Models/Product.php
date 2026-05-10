@@ -23,6 +23,10 @@ class Product extends Model
         'amenities',
         'is_featured',
         'status',
+        'views_count',
+        'sales_count',
+        'ranking_score',
+        'last_ranked_at',
     ];
 
     protected $casts = [
@@ -31,6 +35,10 @@ class Product extends Model
         'offer_price' => 'decimal:2',
         'stock' => 'integer',
         'amenities' => 'array',
+        'views_count' => 'integer',
+        'sales_count' => 'integer',
+        'ranking_score' => 'decimal:4',
+        'last_ranked_at' => 'datetime',
     ];
 
     public function category()
@@ -76,5 +84,22 @@ class Product extends Model
     public function favoritedBy()
     {
         return $this->belongsToMany(User::class, 'favorites');
+    }
+
+    public function scopeOrderByRank($query)
+    {
+        return $query->orderBy('ranking_score', 'desc');
+    }
+
+    protected function thumbnail(): \Illuminate\Database\Eloquent\Casts\Attribute
+    {
+        return \Illuminate\Database\Eloquent\Casts\Attribute::make(
+            get: function ($value) {
+                if (!$value && $this->relationLoaded('primaryImage')) {
+                    $value = $this->primaryImage?->path;
+                }
+                return $value ? asset('storage/' . $value) : null;
+            },
+        );
     }
 }
