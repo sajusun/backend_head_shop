@@ -146,4 +146,35 @@ class NotificationService
             ],
         };
     }
+
+    /**
+     * Notify all admin users about an event.
+     */
+    public static function notifyAdmins(
+        string $type,
+        string $title,
+        string $message,
+        ?string $link = null,
+        ?array $data = null
+    ): int {
+        $admins = User::where('role', 'admin')->get();
+        $count = 0;
+
+        foreach ($admins as $admin) {
+            $notification = self::createForUser(
+                $admin,
+                $type,
+                $title,
+                $message,
+                $link,
+                $data
+            );
+
+            if ($notification) {
+                $count++;
+            }
+        }
+
+        return $count;
+    }
 }

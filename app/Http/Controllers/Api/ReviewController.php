@@ -9,6 +9,7 @@ use App\Traits\ApiResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
+use App\Services\NotificationService;
 
 class ReviewController extends Controller
 {
@@ -61,6 +62,15 @@ class ReviewController extends Controller
                 'comment' => $validator->validated()['comment'],
                 'status' => 'approved',
             ])->load(['user', 'approvedReplies.user']);
+
+            // Notify Admins
+            NotificationService::notifyAdmins(
+                'alert',
+                "New Review Submitted! ⭐",
+                "A new {$validator->validated()['rating']}-star review has been posted for product ID: {$validator->validated()['product_id']}.",
+                '/admin/products', // Or a dedicated reviews page if it exists
+                ['review_id' => $review->id, 'product_id' => $review->product_id]
+            );
 
             return $this->success(
                 'Review submitted successfully',

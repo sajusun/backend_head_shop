@@ -164,6 +164,15 @@ class OrderController extends Controller
                     ['order_id' => $order->id, 'order_number' => $order->order_number],
                     'order_updates'
                 );
+
+                // Notify Admins
+                NotificationService::notifyAdmins(
+                    'order',
+                    "New Order Received! 🛒",
+                    "A new order (#{$order->order_number}) has been placed by {$request->full_name}.",
+                    '/admin/orders',
+                    ['order_id' => $order->id, 'order_number' => $order->order_number]
+                );
             }
 
             // Queue confirmation email — gated by order_updates preference

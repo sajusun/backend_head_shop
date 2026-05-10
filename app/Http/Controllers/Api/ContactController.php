@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Validator;
+use App\Services\NotificationService;
 
 class ContactController extends Controller
 {
@@ -33,6 +34,16 @@ class ContactController extends Controller
 
         try {
             $message = ContactMessage::create($request->all());
+
+            // Notify Admins
+            NotificationService::notifyAdmins(
+                'info',
+                "New Contact Message! 📧",
+                "You have received a new message from {$request->name} regarding: " . ($request->subject ?? 'No Subject'),
+                '/admin/contact',
+                ['message_id' => $message->id]
+            );
+
             return $this->success('Message sent successfully', $message, false, null, true, 201);
         } catch (\Throwable $th) {
             Log::error('Contact Store Error: ' . $th->getMessage());
