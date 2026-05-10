@@ -16,6 +16,8 @@ use BaconQrCode\Renderer\ImageRenderer;
 use BaconQrCode\Renderer\RendererStyle\RendererStyle;
 use BaconQrCode\Writer;
 use Illuminate\Support\Str;
+use App\Services\NotificationService;
+use App\Jobs\SendWelcomeEmail;
 
 class AuthController extends Controller
 {
@@ -50,19 +52,32 @@ class AuthController extends Controller
 
         try {
             $user = User::create([
-                'name' => $request->name,
-                'email' => $request->email,
-                'password' => Hash::make($request->password),
-                'role' => 'user',
+                'name'                     => $request->name,
+                'email'                    => $request->email,
+                'password'                 => Hash::make($request->password),
+                'role'                     => 'user',
+                'notification_preferences' => NotificationService::defaultPreferences(),
             ]);
+
+            // Welcome in-app notification (no gate — always create)
+            NotificationService::createForUser(
+                $user,
+                'info',
+                'Welcome to HERD SHOP! 🎉',
+                'Your account is all set. Explore our premium collection and enjoy exclusive deals.',
+                '/products'
+            );
+
+            // Queue welcome email (no gate)
+            SendWelcomeEmail::dispatch($user);
 
             $token = auth('api')->login($user);
 
             return $this->success('User successfully registered', [
                 'access_token' => $token,
-                'token_type' => 'bearer',
-                'expires_in' => auth('api')->factory()->getTTL() * 60,
-                'user' => $user,
+                'token_type'   => 'bearer',
+                'expires_in'   => auth('api')->factory()->getTTL() * 60,
+                'user'         => $user,
             ], false, null, true, 201);
         } catch (\Throwable $th) {
             Log::info($th->getMessage());

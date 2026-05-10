@@ -4,10 +4,13 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\NewsletterSubscription;
+use App\Models\User;
 use App\Traits\ApiResponse;
+use App\Jobs\SendNewsletterWelcomeEmail;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
+use App\Services\NotificationService;
 
 class NewsletterController extends Controller
 {
@@ -27,9 +30,21 @@ class NewsletterController extends Controller
 
         try {
             $subscription = NewsletterSubscription::create([
-                'email' => $request->email,
+                'email'  => $request->email,
                 'status' => 'subscribed',
             ]);
+
+            // Queue newsletter welcome email — gated by user's newsletter preference if user is logged in
+            $user = User::where('email', $request->email)->first();
+            $shouldSend = true;
+
+            if ($user) {
+                $shouldSend = NotificationService::userAllows($user, 'newsletter');
+            }
+
+            if ($shouldSend) {
+                SendNewsletterWelcomeEmail::dispatch($request->email);
+            }
 
             return $this->success('Subscribed successfully', $subscription, false, null, true, 201);
         } catch (\Throwable $th) {

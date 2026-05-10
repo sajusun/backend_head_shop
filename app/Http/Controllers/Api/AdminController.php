@@ -16,6 +16,9 @@ use App\Models\Color;
 use App\Models\Size;
 use App\Models\Amenity;
 use App\Models\Category;
+use App\Services\NotificationService;
+use App\Jobs\SendOrderStatusEmail;
+use App\Jobs\SendProductPromotionEmail;
 
 class AdminController extends Controller
 {
@@ -107,6 +110,30 @@ class AdminController extends Controller
             }
 
             $order->update($validator->validated());
+
+            // Fire notification + email to order owner when status changes
+            if ($order->user_id && isset($validator->validated()['status'])) {
+                $newStatus = $validator->validated()['status'];
+                $orderUser = $order->user;
+
+                if ($orderUser) {
+                    $label = NotificationService::getOrderStatusLabel($newStatus);
+
+                    NotificationService::createForUser(
+                        $orderUser,
+                        'order',
+                        $label['title'],
+                        $label['message'],
+                        '/orders',
+                        ['order_id' => $order->id, 'order_number' => $order->order_number],
+                        'order_updates'
+                    );
+
+                    if (NotificationService::userAllows($orderUser, 'order_updates')) {
+                        SendOrderStatusEmail::dispatch($order, $newStatus);
+                    }
+                }
+            }
 
             return $this->success('Order updated successfully', $order);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
@@ -280,14 +307,127 @@ class AdminController extends Controller
     {
         try {
             $data = [
-                'colors' => Color::where('status', 'active')->get(),
-                'sizes' => Size::where('status', 'active')->get(),
-                'amenities' => Amenity::where('status', 'active')->get(),
+                'colors'     => Color::where('status', 'active')->get(),
+                'sizes'      => Size::where('status', 'active')->get(),
+                'amenities'  => Amenity::where('status', 'active')->get(),
                 'categories' => Category::where('status', 'active')->where('type', 'product')->get(),
             ];
             return $this->success('Successfully retrieve', $data);
         } catch (\Throwable $th) {
             Log::info($th->getMessage());
+            return $this->error('Somethings Went Wrong', 500);
+        }
+    }
+
+    /**
+     * Admin: Promote a product — send notification + email to eligible users.
+     */
+    public function promoteProduct(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'product_id'   => 'required|exists:products,id',
+            'message'      => 'required|string|max:500',
+            'target'       => 'in:all,opted_in', // 'opted_in' = only users with promotions=true
+        ]);
+
+        if ($validator->fails()) {
+            return $this->error('Validation error', 422, $validator->errors()->toArray());
+        }
+
+        try {
+            $product = Product::with(['primaryImage', 'category'])->findOrFail($request->product_id);
+            $promoMessage = $request->message;
+            $targetOnly = $request->input('target', 'opted_in') === 'opted_in';
+
+            $users = User::where('role', 'user')->get();
+            $notifiedCount = 0;
+            $emailCount    = 0;
+
+            foreach ($users as $user) {
+                $allowed = NotificationService::userAllows($user, 'promotions');
+
+                if (!$allowed && $targetOnly) {
+                    continue;
+                }
+
+                // Create in-app notification
+                $notification = NotificationService::createForUser(
+                    $user,
+                    'promo',
+                    "🔥 Special Offer: {$product->name}",
+                    $promoMessage,
+                    "/products/{$product->slug}",
+                    [
+                        'product_id'    => $product->id,
+                        'product_slug'  => $product->slug,
+                        'product_image' => $product->primaryImage?->image_url,
+                    ],
+                    $targetOnly ? 'promotions' : null
+                );
+
+                if ($notification) {
+                    $notifiedCount++;
+                }
+
+                // Queue promo email
+                if ($allowed) {
+                    SendProductPromotionEmail::dispatch($user, $product, $promoMessage);
+                    $emailCount++;
+                }
+            }
+
+            return $this->success(
+                "Promotion sent! {$notifiedCount} notifications, {$emailCount} emails queued.",
+                ['notified' => $notifiedCount, 'emails_queued' => $emailCount]
+            );
+        } catch (\Throwable $th) {
+            Log::error('promoteProduct error: ' . $th->getMessage());
+            return $this->error('Somethings Went Wrong', 500);
+        }
+    }
+
+    /**
+     * Admin: Broadcast a custom notification to all users or a specific user.
+     */
+    public function broadcastNotification(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'title'       => 'required|string|max:255',
+            'message'     => 'required|string|max:1000',
+            'link'        => 'nullable|string|max:500',
+            'target_user' => 'nullable|exists:users,id', // null = broadcast to all
+            'channel'     => 'in:promotions,info,order_updates', // default: promotions
+        ]);
+
+        if ($validator->fails()) {
+            return $this->error('Validation error', 422, $validator->errors()->toArray());
+        }
+
+        try {
+            $channel = $request->input('channel', 'promotions');
+            $type    = $channel === 'order_updates' ? 'order' : ($channel === 'info' ? 'info' : 'promo');
+
+            if ($request->filled('target_user')) {
+                $user  = User::findOrFail($request->target_user);
+                $count = 0;
+                $notification = NotificationService::createForUser(
+                    $user, $type,
+                    $request->title, $request->message,
+                    $request->link, null, $channel
+                );
+                if ($notification) $count = 1;
+            } else {
+                $count = NotificationService::broadcastPromo(
+                    $request->title,
+                    $request->message,
+                    $request->link,
+                    null
+                );
+            }
+
+            return $this->success("Broadcast sent to {$count} user(s).", ['count' => $count]);
+        } catch (\Throwable $th) {
+            Log::error('broadcastNotification error: ' . $th->getMessage());
             return $this->error('Somethings Went Wrong', 500);
         }
     }

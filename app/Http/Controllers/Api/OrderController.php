@@ -13,6 +13,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
+use App\Services\NotificationService;
+use App\Jobs\SendOrderPlacedEmail;
 
 class OrderController extends Controller
 {
@@ -133,6 +135,26 @@ class OrderController extends Controller
 
                 return $order->load(['items.product', 'items.productVariant.color', 'items.productVariant.size']);
             });
+
+            $user = auth('api')->user();
+
+            // In-app notification — gated by order_updates preference
+            if ($user) {
+                NotificationService::createForUser(
+                    $user,
+                    'order',
+                    "Order #{$order->order_number} Confirmed! ✅",
+                    'Your order has been placed successfully and is now being reviewed.',
+                    '/orders',
+                    ['order_id' => $order->id, 'order_number' => $order->order_number],
+                    'order_updates'
+                );
+            }
+
+            // Queue confirmation email — gated by order_updates preference
+            if (!$user || NotificationService::userAllows($user, 'order_updates')) {
+                SendOrderPlacedEmail::dispatch($order);
+            }
 
             return $this->success('Order placed successfully', $order, false, null, true, 201);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {

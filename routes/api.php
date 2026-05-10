@@ -17,6 +17,7 @@ use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\ContactController;
 use App\Http\Controllers\Api\AttributeController;
 use App\Http\Controllers\Api\PasswordResetController;
+use App\Http\Controllers\Api\UserPreferenceController;
 
 Route::group(['middleware' => 'api','prefix' => 'auth'], function ($router) {
     Route::post('/register', [AuthController::class, 'register']);
@@ -80,10 +81,17 @@ Route::apiResource('comments', CommentController::class)->only(['index', 'store'
 
 // Notification API
 Route::group(['prefix' => 'notifications', 'middleware' => 'auth:api'], function() {
-    Route::get('/', [NotificationController::class, 'index']);
-    Route::post('/{id}/read', [NotificationController::class, 'markAsRead']);
-    Route::post('/read-all', [NotificationController::class, 'markAllAsRead']);
-    Route::delete('/{id}', [NotificationController::class, 'destroy']);
+    Route::get('/',               [NotificationController::class, 'index']);
+    Route::get('/unread-count',   [NotificationController::class, 'unreadCount']);
+    Route::post('/{id}/read',     [NotificationController::class, 'markAsRead']);
+    Route::post('/read-all',      [NotificationController::class, 'markAllAsRead']);
+    Route::delete('/{id}',        [NotificationController::class, 'destroy']);
+});
+
+// User Notification Preferences
+Route::middleware('auth:api')->group(function () {
+    Route::get('/auth/notification-preferences',  [UserPreferenceController::class, 'show']);
+    Route::put('/auth/notification-preferences',  [UserPreferenceController::class, 'update']);
 });
 
 // Newsletter API
@@ -128,10 +136,14 @@ Route::group(['prefix' => 'admin', 'middleware' => ['auth:api', 'admin']], funct
     Route::get('/get-attributes', [AdminController::class, 'getAttributes']);
 
     // Attribute Management (CRUD)
-    Route::get('/attributes/{type}', [AttributeController::class, 'index']);
-    Route::post('/attributes/{type}', [AttributeController::class, 'store']);
-    Route::put('/attributes/{type}/{id}', [AttributeController::class, 'update']);
-    Route::delete('/attributes/{type}/{id}', [AttributeController::class, 'destroy']);
+    Route::get('/attributes/{type}',          [AttributeController::class, 'index']);
+    Route::post('/attributes/{type}',         [AttributeController::class, 'store']);
+    Route::put('/attributes/{type}/{id}',     [AttributeController::class, 'update']);
+    Route::delete('/attributes/{type}/{id}',  [AttributeController::class, 'destroy']);
+
+    // Notification Management (Admin)
+    Route::post('/notifications/promote-product', [AdminController::class, 'promoteProduct']);
+    Route::post('/notifications/broadcast',       [AdminController::class, 'broadcastNotification']);
 });
 
 // Settings API (Public)

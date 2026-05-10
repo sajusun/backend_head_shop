@@ -12,6 +12,23 @@ class NotificationController extends Controller
 {
     use ApiResponse;
     /**
+     * Get unread notification count (lightweight polling endpoint).
+     */
+    public function unreadCount()
+    {
+        try {
+            $count = Notification::where('user_id', auth('api')->id())
+                ->where('is_read', false)
+                ->count();
+
+            return $this->success('Successfully retrieved', ['unread_count' => $count]);
+        } catch (\Throwable $th) {
+            Log::info($th->getMessage());
+            return $this->error('Somethings Went Wrong', 500);
+        }
+    }
+
+    /**
      * Display a listing of the user's notifications.
      */
     public function index()

@@ -65,6 +65,7 @@ class User extends Authenticatable implements JWTSubject
         'phone',
         'bio',
         'email_verified_at',
+        'notification_preferences',
     ];
 
     /**
@@ -87,11 +88,12 @@ class User extends Authenticatable implements JWTSubject
     protected function casts(): array
     {
         return [
-            'email_verified_at' => 'datetime',
-            'password' => 'hashed',
-            'two_factor_secret' => 'encrypted',
+            'email_verified_at'        => 'datetime',
+            'password'                 => 'hashed',
+            'two_factor_secret'        => 'encrypted',
             'two_factor_recovery_codes' => 'encrypted:json',
-            'two_factor_confirmed_at' => 'datetime',
+            'two_factor_confirmed_at'  => 'datetime',
+            'notification_preferences' => 'array',
         ];
     }
 
@@ -118,5 +120,10 @@ class User extends Authenticatable implements JWTSubject
     public function likedBlogs()
     {
         return $this->belongsToMany(Blog::class, 'blog_likes');
+    }
+
+    public function notifications()
+    {
+        return $this->hasMany(\App\Models\Notification::class);
     }
 }

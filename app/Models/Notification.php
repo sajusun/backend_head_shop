@@ -16,10 +16,12 @@ class Notification extends Model
         'message',
         'link',
         'is_read',
+        'data',
     ];
 
     protected $casts = [
         'is_read' => 'boolean',
+        'data'    => 'array',
     ];
 
     public function user()
