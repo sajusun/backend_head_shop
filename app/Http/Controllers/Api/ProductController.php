@@ -37,7 +37,7 @@ class ProductController extends Controller
         $currentPage = $request->input('page', 1);
 
         try {
-            $query = Product::with(['category', 'primaryImage', 'images', 'variants.color', 'variants.size', 'amenityItems'])
+            $query = Product::with(['category', 'primaryImage', 'images', 'variants.color', 'variants.size', 'amenityItems', 'promotions'])
                 ->withCount('approvedReviews')
                 ->withAvg('approvedReviews', 'rating');
 
@@ -363,6 +363,7 @@ class ProductController extends Controller
                 'variants.size',
                 'approvedReviews.user',
                 'approvedReviews.approvedReplies.user',
+                'promotions'
             ])
             ->withCount('approvedReviews')
             ->withAvg('approvedReviews', 'rating');

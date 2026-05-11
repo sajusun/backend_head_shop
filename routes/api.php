@@ -20,6 +20,7 @@ use App\Http\Controllers\Api\PasswordResetController;
 use App\Http\Controllers\Api\UserPreferenceController;
 use App\Http\Controllers\SocialAuthController;
 use App\Http\Controllers\Api\CartController;
+use App\Http\Controllers\PromotionController;
 
 Route::group(['middleware' => 'api','prefix' => 'auth'], function ($router) {
     Route::post('/register', [AuthController::class, 'register']);
@@ -51,6 +52,7 @@ Route::get('categories/{id}', [CategoryController::class, 'show']);
 Route::get('products', [ProductController::class, 'index']);
 Route::get('products/{slug}', [ProductController::class, 'showBySlug']);
 Route::get('reviews/{productId}', [ReviewController::class, 'index']);
+Route::get('promotions/active', [PromotionController::class, 'active']);
 
 
 Route::group(['middleware' => ['auth:api', 'admin']], function() {
@@ -152,6 +154,12 @@ Route::group(['prefix' => 'admin', 'middleware' => ['auth:api', 'admin']], funct
     // Notification Management (Admin)
     Route::post('/notifications/promote-product', [AdminController::class, 'promoteProduct']);
     Route::post('/notifications/broadcast',       [AdminController::class, 'broadcastNotification']);
+
+    // Promotion Management
+    Route::get('/promotions', [PromotionController::class, 'index']);
+    Route::post('/promotions', [PromotionController::class, 'store']);
+    Route::match(['put', 'post'], '/promotions/{promotion}', [PromotionController::class, 'update']);
+    Route::delete('/promotions/{promotion}', [PromotionController::class, 'destroy']);
 });
 
 // Settings API (Public)

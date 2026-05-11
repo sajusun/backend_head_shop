@@ -86,6 +86,11 @@ class Product extends Model
         return $this->belongsToMany(User::class, 'favorites');
     }
 
+    public function promotions()
+    {
+        return $this->belongsToMany(Promotion::class);
+    }
+
     public function scopeOrderByRank($query)
     {
         return $query->orderBy('ranking_score', 'desc');

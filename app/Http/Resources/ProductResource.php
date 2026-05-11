@@ -26,6 +26,9 @@ class ProductResource extends JsonResource
             'views_count' => (int) $this->views_count,
             'sales_count' => (int) $this->sales_count,
             'ranking_score' => (float) $this->ranking_score,
+            'is_promo' => $this->relationLoaded('promotions') 
+                ? $this->promotions->where('status', true)->count() > 0 
+                : false,
             'primary_image' => $this->relationLoaded('primaryImage') && $this->primaryImage ? [
                 'id' => $this->primaryImage->id,
                 'image_path' => asset('storage/' . $this->primaryImage->path),
