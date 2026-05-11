@@ -18,8 +18,8 @@ class ProductResource extends JsonResource
 
             'description' => $this->description,
             'price' => (float) $this->price,
-            'offer_price' => $this->offer_price !== null ? (float) $this->offer_price : null,
-            'effective_price' => (float) ($this->offer_price ?? $this->price),
+            'offer_price' => $this->calculateOfferPrice(),
+            'effective_price' => (float) ($this->calculateOfferPrice() ?? $this->price),
             'stock' => (int) ($this->stock ?? $this->whenLoaded('variants', fn () => $this->variants->sum('stock'), 0)),
             'is_featured' => (bool) $this->is_featured,
             'status' => $this->status,
@@ -27,8 +27,18 @@ class ProductResource extends JsonResource
             'sales_count' => (int) $this->sales_count,
             'ranking_score' => (float) $this->ranking_score,
             'is_promo' => $this->relationLoaded('promotions') 
-                ? $this->promotions->where('status', true)->count() > 0 
+                ? $this->promotions->where('status', true)
+                    ->where('start_date', '<=', now())
+                    ->where('end_date', '>=', now())
+                    ->count() > 0 
                 : false,
+            'active_promotion' => $this->relationLoaded('promotions')
+                ? $this->promotions->where('status', true)
+                    ->where('start_date', '<=', now())
+                    ->where('end_date', '>=', now())
+                    ->sortByDesc('discount_percentage')
+                    ->first()
+                : null,
             'primary_image' => $this->relationLoaded('primaryImage') && $this->primaryImage ? [
                 'id' => $this->primaryImage->id,
                 'image_path' => asset('storage/' . $this->primaryImage->path),
@@ -49,6 +59,30 @@ class ProductResource extends JsonResource
                 : ($this->amenities ?? []),
             'reviews' => ReviewResource::collection($this->whenLoaded('approvedReviews')),
         ];
+    }
+
+    private function calculateOfferPrice(): ?float
+    {
+        // 1. Manual offer price takes precedence
+        if ($this->offer_price !== null) {
+            return (float) $this->offer_price;
+        }
+
+        // 2. Check for active promotion discount
+        if ($this->relationLoaded('promotions')) {
+            $promo = $this->promotions->where('status', true)
+                ->where('start_date', '<=', now())
+                ->where('end_date', '>=', now())
+                ->sortByDesc('discount_percentage')
+                ->first();
+
+            if ($promo && $promo->discount_percentage > 0) {
+                $discounted = $this->price * (1 - ($promo->discount_percentage / 100));
+                return (float) round($discounted, 2);
+            }
+        }
+
+        return null;
     }
 
     private function thumbnailPath(): ?string
