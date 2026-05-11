@@ -35,7 +35,10 @@ class SettingController extends Controller
         }
 
         foreach ($request->settings as $key => $value) {
-            Setting::where('key', $key)->update(['value' => $value]);
+            Setting::updateOrCreate(
+                ['key' => $key],
+                ['value' => $value]
+            );
         }
 
         return response()->json([

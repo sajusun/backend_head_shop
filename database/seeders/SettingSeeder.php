@@ -23,6 +23,8 @@ class SettingSeeder extends Seeder
             // SEO Settings
             ['key' => 'seo_description', 'value' => 'HERD SHOP offers a curated collection of premium lifestyle products, from tech accessories to home essentials.', 'group' => 'seo', 'type' => 'text'],
             ['key' => 'seo_keywords', 'value' => 'premium, lifestyle, tech accessories, minimalist design, herd shop', 'group' => 'seo', 'type' => 'text'],
+            ['key' => 'seo_header_scripts', 'value' => '', 'group' => 'seo', 'type' => 'html'],
+            ['key' => 'seo_footer_scripts', 'value' => '', 'group' => 'seo', 'type' => 'html'],
             
             // Static Pages
             ['key' => 'about_page_content', 'value' => '<h1>About HERD SHOP</h1><p>Founded in 2024, HERD SHOP was born out of a passion for minimalist design and premium craftsmanship. We believe that the objects you surround yourself with should be as beautiful as they are functional.</p><p>Our mission is to curate a collection of lifestyle essentials that elevate your daily routine, focusing on quality materials and timeless aesthetics.</p>', 'group' => 'pages', 'type' => 'html'],
@@ -34,6 +36,12 @@ class SettingSeeder extends Seeder
             ['key' => 'shipping_policy_content', 'value' => '<h1>Shipping Policy</h1><p>We offer free express shipping on all orders over $100. Most orders are processed within 24 hours and delivered within 3-5 business days.</p>', 'group' => 'pages', 'type' => 'html'],
             
             ['key' => 'returns_policy_content', 'value' => '<h1>Returns & Exchanges</h1><p>If you are not 100% satisfied with your purchase, you can return the product and get a full refund or exchange the product for another one, be it similar or not.</p>', 'group' => 'pages', 'type' => 'html'],
+            
+            // Social Media
+            ['key' => 'social_facebook', 'value' => 'https://facebook.com', 'group' => 'social', 'type' => 'text'],
+            ['key' => 'social_instagram', 'value' => 'https://instagram.com', 'group' => 'social', 'type' => 'text'],
+            ['key' => 'social_twitter', 'value' => 'https://twitter.com', 'group' => 'social', 'type' => 'text'],
+            ['key' => 'social_linkedin', 'value' => 'https://linkedin.com', 'group' => 'social', 'type' => 'text'],
         ];
 
         foreach ($settings as $setting) {
