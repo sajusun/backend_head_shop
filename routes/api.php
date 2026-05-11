@@ -4,6 +4,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\AdminAuthController;
 use App\Http\Controllers\Api\BlogController;
 use App\Http\Controllers\Api\AdminController;
 use App\Http\Controllers\Api\OrderController;
@@ -22,7 +23,8 @@ use App\Http\Controllers\SocialAuthController;
 use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\PromotionController;
 
-Route::group(['middleware' => 'api','prefix' => 'auth'], function ($router) {
+// User Authentication Routes
+Route::group(['middleware' => 'api', 'prefix' => 'auth'], function ($router) {
     Route::post('/register', [AuthController::class, 'register']);
     Route::post('/login', [AuthController::class, 'login']);
     Route::post('/login-2fa', [AuthController::class, 'loginWith2FA']);
@@ -40,6 +42,20 @@ Route::group(['middleware' => 'api','prefix' => 'auth'], function ($router) {
     // Password Reset
     Route::post('/forgot-password', [PasswordResetController::class, 'sendResetLinkEmail']);
     Route::post('/reset-password', [PasswordResetController::class, 'reset']);
+});
+
+// Admin Authentication Routes (Isolated)
+Route::group(['middleware' => 'api', 'prefix' => 'admin/auth'], function ($router) {
+    Route::post('/login', [AdminAuthController::class, 'login']);
+    Route::post('/login-2fa', [AdminAuthController::class, 'loginWith2FA']);
+    Route::post('/logout', [AdminAuthController::class, 'logout'])->middleware(['auth:api', 'admin']);
+    Route::post('/refresh', [AdminAuthController::class, 'refresh'])->middleware(['auth:api', 'admin']);
+    Route::get('/profile', [AdminAuthController::class, 'profile'])->middleware(['auth:api', 'admin']);
+    
+    // Admin 2FA Management Routes
+    Route::get('/two-factor-qr', [AdminAuthController::class, 'get2FAQrCode'])->middleware(['auth:api', 'admin']);
+    Route::post('/two-factor-confirm', [AdminAuthController::class, 'confirm2FA'])->middleware(['auth:api', 'admin']);
+    Route::post('/two-factor-disable', [AdminAuthController::class, 'disable2FA'])->middleware(['auth:api', 'admin']);
 });
 
 // Payment Routes
