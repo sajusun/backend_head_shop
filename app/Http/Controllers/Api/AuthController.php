@@ -107,6 +107,12 @@ class AuthController extends Controller
 
         $user = auth('api')->user();
 
+        // STRICT CHECK: Regular user login route should NOT allow admins
+        if ($user->role === 'admin') {
+            auth('api')->logout();
+            return $this->error('Please use the admin login portal.', 403);
+        }
+
         // Check if 2FA is enabled
         if ($user->hasTwoFactorEnabled()) {
             // We don't return the token yet. 
@@ -140,6 +146,13 @@ class AuthController extends Controller
         }
 
         $user = auth('api')->user();
+
+        // Role check for isolation
+        if ($user->role === 'admin') {
+            auth('api')->logout();
+            return $this->error('Please use the admin login portal.', 403);
+        }
+
         $google2fa = new Google2FA();
 
         if ($google2fa->verifyKey($user->two_factor_secret, $request->code)) {

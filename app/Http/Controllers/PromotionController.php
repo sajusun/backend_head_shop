@@ -24,7 +24,7 @@ class PromotionController extends Controller
                     ->orWhere('end_date', '>=', now());
             })
             ->with(['products' => function($q) {
-                $q->where('status', 'active')->limit(10);
+                $q->where('status', 'published')->limit(10);
             }])
             ->orderBy('order')
             ->get();
