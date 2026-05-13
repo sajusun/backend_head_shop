@@ -1,0 +1,1394 @@
+{
+  "info": {
+    "name": "Herd Shop API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8000" },
+    { "key": "apiPrefix", "value": "/api" },
+    { "key": "accessToken", "value": "" },
+    { "key": "adminAccessToken", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"John Doe\",\n  \"email\": \"john@example.com\",\n  \"password\": \"password123\",\n  \"password_confirmation\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/auth/register"
+            }
+          }
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "try {",
+                  "  const json = pm.response.json();",
+                  "  const token = json?.data?.access_token || json?.access_token || json?.token;",
+                  "  if (token) pm.collectionVariables.set('accessToken', token);",
+                  "} catch (e) {}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"john@example.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/auth/login" }
+          }
+        },
+        {
+          "name": "Login (2FA)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "try {",
+                  "  const json = pm.response.json();",
+                  "  const token = json?.data?.access_token || json?.access_token || json?.token;",
+                  "  if (token) pm.collectionVariables.set('accessToken', token);",
+                  "} catch (e) {}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"john@example.com\",\n  \"password\": \"password123\",\n  \"code\": \"123456\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/auth/login-2fa" }
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }] },
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/auth/logout" }
+          }
+        },
+        {
+          "name": "Refresh Token",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }] },
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/auth/refresh" }
+          }
+        },
+        {
+          "name": "User Profile",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }] },
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/auth/user-profile" }
+          }
+        },
+        {
+          "name": "Update Profile (multipart)",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }] },
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "name", "value": "John Doe", "type": "text" },
+                { "key": "phone", "value": "+8801XXXXXXXXX", "type": "text" },
+                { "key": "bio", "value": "Short bio", "type": "text" },
+                { "key": "avatar", "type": "file", "src": "" }
+              ]
+            },
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/auth/profile" }
+          }
+        },
+        {
+          "name": "Change Password",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }] },
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"current_password\": \"password123\",\n  \"password\": \"newpassword123\",\n  \"password_confirmation\": \"newpassword123\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/auth/change-password" }
+          }
+        },
+        {
+          "name": "2FA: Get QR",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }] },
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/auth/two-factor-qr" }
+          }
+        },
+        {
+          "name": "2FA: Confirm",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }] },
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"code\": \"123456\"\n}" },
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/auth/two-factor-confirm" }
+          }
+        },
+        {
+          "name": "2FA: Disable",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }] },
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"current_password\": \"password123\"\n}" },
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/auth/two-factor-disable" }
+          }
+        },
+        {
+          "name": "Forgot Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"john@example.com\"\n}" },
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/auth/forgot-password" }
+          }
+        },
+        {
+          "name": "Reset Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"RESET_TOKEN\",\n  \"email\": \"john@example.com\",\n  \"password\": \"newpassword123\",\n  \"password_confirmation\": \"newpassword123\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/auth/reset-password" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin Auth",
+      "item": [
+        {
+          "name": "Admin Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "try {",
+                  "  const json = pm.response.json();",
+                  "  const token = json?.data?.access_token || json?.access_token || json?.token;",
+                  "  if (token) pm.collectionVariables.set('adminAccessToken', token);",
+                  "} catch (e) {}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"password123\"\n}" },
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/admin/auth/login" }
+          }
+        },
+        {
+          "name": "Admin Login (2FA)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "try {",
+                  "  const json = pm.response.json();",
+                  "  const token = json?.data?.access_token || json?.access_token || json?.token;",
+                  "  if (token) pm.collectionVariables.set('adminAccessToken', token);",
+                  "} catch (e) {}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"password123\",\n  \"code\": \"123456\"\n}" },
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/admin/auth/login-2fa" }
+          }
+        },
+        {
+          "name": "Admin Logout",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminAccessToken}}", "type": "string" }] },
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/admin/auth/logout" }
+          }
+        },
+        {
+          "name": "Admin Refresh",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminAccessToken}}", "type": "string" }] },
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/admin/auth/refresh" }
+          }
+        },
+        {
+          "name": "Admin Profile",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminAccessToken}}", "type": "string" }] },
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/admin/auth/profile" }
+          }
+        },
+        {
+          "name": "Admin 2FA: Get QR",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminAccessToken}}", "type": "string" }] },
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/admin/auth/two-factor-qr" }
+          }
+        },
+        {
+          "name": "Admin 2FA: Confirm",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminAccessToken}}", "type": "string" }] },
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"code\": \"123456\"\n}" },
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/admin/auth/two-factor-confirm" }
+          }
+        },
+        {
+          "name": "Admin 2FA: Disable",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminAccessToken}}", "type": "string" }] },
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"current_password\": \"password123\"\n}" },
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/admin/auth/two-factor-disable" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Payments",
+      "item": [
+        {
+          "name": "Initiate Payment",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }] },
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"order_id\": 1\n}" },
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/payments/initiate" }
+          }
+        },
+        {
+          "name": "Gateway Callback (GET)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/payments/callback/{{gateway}}/{{status}}?tran_id=ORD-20260101-ABC123",
+              "variable": [
+                { "key": "gateway", "value": "chapa" },
+                { "key": "status", "value": "success" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Gateway Callback (POST)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/payments/callback/{{gateway}}/{{status}}",
+              "variable": [
+                { "key": "gateway", "value": "chapa" },
+                { "key": "status", "value": "ipn" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Categories",
+      "item": [
+        {
+          "name": "List Categories",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/categories?type=product&per_page=20",
+              "query": [
+                { "key": "type", "value": "product" },
+                { "key": "per_page", "value": "20" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Category",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/categories/{{id}}", "variable": [{ "key": "id", "value": "1" }] }
+          }
+        },
+        {
+          "name": "Create Category (Admin)",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminAccessToken}}", "type": "string" }] },
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Shoes\",\n  \"type\": \"product\",\n  \"parent_id\": null,\n  \"description\": \"\",\n  \"image\": \"\",\n  \"status\": \"active\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/categories" }
+          }
+        },
+        {
+          "name": "Update Category (Admin)",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminAccessToken}}", "type": "string" }] },
+            "method": "PUT",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Shoes\",\n  \"status\": \"active\"\n}" },
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/categories/{{id}}", "variable": [{ "key": "id", "value": "1" }] }
+          }
+        },
+        {
+          "name": "Delete Category (Admin)",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminAccessToken}}", "type": "string" }] },
+            "method": "DELETE",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/categories/{{id}}", "variable": [{ "key": "id", "value": "1" }] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Products",
+      "item": [
+        {
+          "name": "List Products",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/products?per_page=16&page=1&sort=latest&category=&search=&min_price=&max_price=&is_featured=&status=",
+              "query": [
+                { "key": "per_page", "value": "16" },
+                { "key": "page", "value": "1" },
+                { "key": "sort", "value": "latest" },
+                { "key": "category", "value": "", "disabled": true },
+                { "key": "search", "value": "", "disabled": true },
+                { "key": "min_price", "value": "", "disabled": true },
+                { "key": "max_price", "value": "", "disabled": true },
+                { "key": "is_featured", "value": "", "disabled": true },
+                { "key": "status", "value": "", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Product By Slug",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/products/{{slug}}",
+              "variable": [{ "key": "slug", "value": "sample-product-slug" }]
+            }
+          }
+        },
+        {
+          "name": "Create Product (Admin, multipart)",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminAccessToken}}", "type": "string" }] },
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "category_id", "value": "1", "type": "text" },
+                { "key": "name", "value": "Sample Product", "type": "text" },
+                { "key": "sku", "value": "SKU-001", "type": "text" },
+                { "key": "description", "value": "Description", "type": "text" },
+                { "key": "price", "value": "99.99", "type": "text" },
+                { "key": "offer_price", "value": "79.99", "type": "text" },
+                { "key": "stock", "value": "100", "type": "text" },
+                { "key": "is_featured", "value": "false", "type": "text" },
+                { "key": "status", "value": "published", "type": "text" },
+                { "key": "thumbnail", "type": "file", "src": "" },
+                { "key": "images[0]", "type": "file", "src": "" },
+                { "key": "images[1]", "type": "file", "src": "", "disabled": true },
+                { "key": "amenities[0]", "value": "1", "type": "text", "disabled": true },
+                { "key": "variants[0][color_id]", "value": "1", "type": "text", "disabled": true },
+                { "key": "variants[0][size_id]", "value": "1", "type": "text", "disabled": true },
+                { "key": "variants[0][price]", "value": "99.99", "type": "text", "disabled": true },
+                { "key": "variants[0][offer_price]", "value": "79.99", "type": "text", "disabled": true },
+                { "key": "variants[0][stock]", "value": "10", "type": "text", "disabled": true },
+                { "key": "variants[0][status]", "value": "published", "type": "text", "disabled": true }
+              ]
+            },
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/products" }
+          }
+        },
+        {
+          "name": "Update Product (Admin, multipart)",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminAccessToken}}", "type": "string" }] },
+            "method": "PUT",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "_method", "value": "PUT", "type": "text" },
+                { "key": "category_id", "value": "1", "type": "text" },
+                { "key": "name", "value": "Updated Product", "type": "text" },
+                { "key": "sku", "value": "SKU-001", "type": "text" },
+                { "key": "description", "value": "Updated", "type": "text" },
+                { "key": "price", "value": "99.99", "type": "text" },
+                { "key": "offer_price", "value": "79.99", "type": "text" },
+                { "key": "stock", "value": "100", "type": "text" },
+                { "key": "is_featured", "value": "false", "type": "text" },
+                { "key": "status", "value": "published", "type": "text" },
+                { "key": "thumbnail", "type": "file", "src": "", "disabled": true },
+                { "key": "images[0]", "type": "file", "src": "", "disabled": true },
+                { "key": "deleted_images[0]", "value": "1", "type": "text", "disabled": true },
+                { "key": "variants[0][id]", "value": "1", "type": "text", "disabled": true },
+                { "key": "variants[0][color_id]", "value": "1", "type": "text", "disabled": true },
+                { "key": "variants[0][size_id]", "value": "1", "type": "text", "disabled": true },
+                { "key": "variants[0][price]", "value": "99.99", "type": "text", "disabled": true },
+                { "key": "variants[0][offer_price]", "value": "79.99", "type": "text", "disabled": true },
+                { "key": "variants[0][stock]", "value": "10", "type": "text", "disabled": true },
+                { "key": "variants[0][status]", "value": "published", "type": "text", "disabled": true }
+              ]
+            },
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/products/{{id}}", "variable": [{ "key": "id", "value": "1" }] }
+          }
+        },
+        {
+          "name": "Delete Product (Admin)",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminAccessToken}}", "type": "string" }] },
+            "method": "DELETE",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/products/{{id}}", "variable": [{ "key": "id", "value": "1" }] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reviews",
+      "item": [
+        {
+          "name": "List Reviews By Product",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/reviews/{{productId}}", "variable": [{ "key": "productId", "value": "1" }] }
+          }
+        },
+        {
+          "name": "Create Review",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }] },
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"product_id\": 1,\n  \"rating\": 5,\n  \"comment\": \"Great product!\"\n}" },
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/reviews" }
+          }
+        },
+        {
+          "name": "Reply To Review",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }] },
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"comment\": \"Thanks!\"\n}" },
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/reviews/{{reviewId}}/replies", "variable": [{ "key": "reviewId", "value": "1" }] }
+          }
+        },
+        {
+          "name": "Delete Review",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }] },
+            "method": "DELETE",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/reviews/{{id}}", "variable": [{ "key": "id", "value": "1" }] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Cart",
+      "item": [
+        {
+          "name": "Get Cart",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }] },
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/cart" }
+          }
+        },
+        {
+          "name": "Add To Cart",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }] },
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"product_id\": 1,\n  \"product_variant_id\": null,\n  \"quantity\": 1,\n  \"selectedColor\": null,\n  \"selectedSize\": null\n}"
+            },
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/cart" }
+          }
+        },
+        {
+          "name": "Sync Cart Items",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }] },
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    {\n      \"id\": 1,\n      \"product_variant_id\": null,\n      \"quantity\": 1,\n      \"selectedColor\": null,\n      \"selectedSize\": null\n    }\n  ]\n}"
+            },
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/cart/sync" }
+          }
+        },
+        {
+          "name": "Update Cart Quantity",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }] },
+            "method": "PUT",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"quantity\": 2\n}" },
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/cart/{{id}}", "variable": [{ "key": "id", "value": "1" }] }
+          }
+        },
+        {
+          "name": "Remove Cart Item",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }] },
+            "method": "DELETE",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/cart/{{id}}", "variable": [{ "key": "id", "value": "1" }] }
+          }
+        },
+        {
+          "name": "Clear Cart",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }] },
+            "method": "DELETE",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/cart/clear" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Orders",
+      "item": [
+        {
+          "name": "List My Orders",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }] },
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/orders" }
+          }
+        },
+        {
+          "name": "Create Order (Checkout)",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }] },
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"full_name\": \"John Doe\",\n  \"email\": \"john@example.com\",\n  \"phone\": \"\",\n  \"address\": \"Street address\",\n  \"city\": \"Dhaka\",\n  \"postal_code\": \"1207\",\n  \"notes\": \"\",\n  \"payment_method\": \"chapa\",\n  \"items\": [\n    {\n      \"product_id\": 1,\n      \"product_variant_id\": null,\n      \"quantity\": 1,\n      \"selected_color\": null,\n      \"selected_size\": null\n    }\n  ]\n}"
+            },
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/orders" }
+          }
+        },
+        {
+          "name": "Get Order",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }] },
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/orders/{{id}}", "variable": [{ "key": "id", "value": "1" }] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Blogs",
+      "item": [
+        {
+          "name": "List Blogs",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/blogs?per_page=24&category=&search=",
+              "query": [
+                { "key": "per_page", "value": "24" },
+                { "key": "category", "value": "", "disabled": true },
+                { "key": "search", "value": "", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Blog (by id)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/blogs/{{id}}", "variable": [{ "key": "id", "value": "1" }] }
+          }
+        },
+        {
+          "name": "Get Blog By Slug",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/blogs/slug/{{slug}}", "variable": [{ "key": "slug", "value": "sample-blog-slug" }] }
+          }
+        },
+        {
+          "name": "Create Blog (multipart, auth)",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }] },
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "category_id", "value": "1", "type": "text" },
+                { "key": "title", "value": "My Blog Post", "type": "text" },
+                { "key": "excerpt", "value": "Short excerpt", "type": "text" },
+                { "key": "content", "value": "Full content", "type": "text" },
+                { "key": "status", "value": "draft", "type": "text" },
+                { "key": "featured_image", "type": "file", "src": "", "disabled": true }
+              ]
+            },
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/blogs" }
+          }
+        },
+        {
+          "name": "Update Blog (multipart, auth)",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }] },
+            "method": "PUT",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "_method", "value": "PUT", "type": "text" },
+                { "key": "category_id", "value": "1", "type": "text" },
+                { "key": "title", "value": "Updated title", "type": "text" },
+                { "key": "excerpt", "value": "Updated excerpt", "type": "text" },
+                { "key": "content", "value": "Updated content", "type": "text" },
+                { "key": "status", "value": "published", "type": "text" },
+                { "key": "featured_image", "type": "file", "src": "", "disabled": true }
+              ]
+            },
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/blogs/{{id}}", "variable": [{ "key": "id", "value": "1" }] }
+          }
+        },
+        {
+          "name": "Delete Blog (auth)",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }] },
+            "method": "DELETE",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/blogs/{{id}}", "variable": [{ "key": "id", "value": "1" }] }
+          }
+        },
+        {
+          "name": "Like/Unlike Blog (auth)",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }] },
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/blogs/{{id}}/like", "variable": [{ "key": "id", "value": "1" }] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Comments",
+      "item": [
+        {
+          "name": "List Comments (by blog_id query)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/comments?blog_id=1",
+              "query": [{ "key": "blog_id", "value": "1" }]
+            }
+          }
+        },
+        {
+          "name": "Create Comment (auth)",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }] },
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"blog_id\": 1,\n  \"content\": \"Nice post!\",\n  \"parent_id\": null\n}" },
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/comments" }
+          }
+        },
+        {
+          "name": "Update Comment Status (Admin only)",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminAccessToken}}", "type": "string" }] },
+            "method": "PUT",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"status\": \"approved\"\n}" },
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/comments/{{id}}", "variable": [{ "key": "id", "value": "1" }] }
+          }
+        },
+        {
+          "name": "Delete Comment (auth)",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }] },
+            "method": "DELETE",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/comments/{{id}}", "variable": [{ "key": "id", "value": "1" }] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Notifications",
+      "item": [
+        {
+          "name": "List Notifications",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }] },
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/notifications/" }
+          }
+        },
+        {
+          "name": "Unread Count",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }] },
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/notifications/unread-count" }
+          }
+        },
+        {
+          "name": "Mark As Read",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }] },
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/notifications/{{id}}/read", "variable": [{ "key": "id", "value": "1" }] }
+          }
+        },
+        {
+          "name": "Mark All As Read",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }] },
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/notifications/read-all" }
+          }
+        },
+        {
+          "name": "Delete Notification",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }] },
+            "method": "DELETE",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/notifications/{{id}}", "variable": [{ "key": "id", "value": "1" }] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Notification Preferences",
+      "item": [
+        {
+          "name": "Get Preferences",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }] },
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/auth/notification-preferences" }
+          }
+        },
+        {
+          "name": "Update Preferences",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }] },
+            "method": "PUT",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"order_updates\": true,\n  \"promotions\": true,\n  \"newsletter\": true\n}" },
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/auth/notification-preferences" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Newsletter",
+      "item": [
+        {
+          "name": "Subscribe",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"john@example.com\"\n}" },
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/newsletter/subscribe" }
+          }
+        },
+        {
+          "name": "Unsubscribe",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"john@example.com\"\n}" },
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/newsletter/unsubscribe" }
+          }
+        },
+        {
+          "name": "List Subscriptions (Admin)",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminAccessToken}}", "type": "string" }] },
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/admin/newsletter" }
+          }
+        },
+        {
+          "name": "Delete Subscription (Admin)",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminAccessToken}}", "type": "string" }] },
+            "method": "DELETE",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/admin/newsletter/{{id}}", "variable": [{ "key": "id", "value": "1" }] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Contact",
+      "item": [
+        {
+          "name": "Send Message",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"John Doe\",\n  \"email\": \"john@example.com\",\n  \"subject\": \"Question\",\n  \"message\": \"Hello\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/contact" }
+          }
+        },
+        {
+          "name": "List Messages (Admin)",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminAccessToken}}", "type": "string" }] },
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/admin/contact-messages?status=",
+              "query": [{ "key": "status", "value": "", "disabled": true }]
+            }
+          }
+        },
+        {
+          "name": "Get Message (Admin)",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminAccessToken}}", "type": "string" }] },
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/admin/contact-messages/{{id}}", "variable": [{ "key": "id", "value": "1" }] }
+          }
+        },
+        {
+          "name": "Reply To Message (Admin)",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminAccessToken}}", "type": "string" }] },
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"reply_message\": \"Thanks for reaching out.\"\n}" },
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/admin/contact-messages/{{id}}/reply", "variable": [{ "key": "id", "value": "1" }] }
+          }
+        },
+        {
+          "name": "Delete Message (Admin)",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminAccessToken}}", "type": "string" }] },
+            "method": "DELETE",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/admin/contact-messages/{{id}}", "variable": [{ "key": "id", "value": "1" }] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "Dashboard Stats",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminAccessToken}}", "type": "string" }] },
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/admin/dashboard-stats" }
+          }
+        },
+        {
+          "name": "Admin Orders (list)",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminAccessToken}}", "type": "string" }] },
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/admin/orders?per_page=20&status=&payment_status=&search=",
+              "query": [
+                { "key": "per_page", "value": "20" },
+                { "key": "status", "value": "", "disabled": true },
+                { "key": "payment_status", "value": "", "disabled": true },
+                { "key": "search", "value": "", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Admin Order Details",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminAccessToken}}", "type": "string" }] },
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/admin/orders/{{id}}", "variable": [{ "key": "id", "value": "1" }] }
+          }
+        },
+        {
+          "name": "Admin Update Order Status",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminAccessToken}}", "type": "string" }] },
+            "method": "PUT",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"status\": \"processing\",\n  \"payment_status\": \"paid\"\n}" },
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/admin/orders/{{id}}/status", "variable": [{ "key": "id", "value": "1" }] }
+          }
+        },
+        {
+          "name": "Admin Users (list)",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminAccessToken}}", "type": "string" }] },
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/admin/users" }
+          }
+        },
+        {
+          "name": "Admin Create User",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminAccessToken}}", "type": "string" }] },
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"New User\",\n  \"email\": \"newuser@example.com\",\n  \"password\": \"password123\",\n  \"password_confirmation\": \"password123\",\n  \"role\": \"user\"\n}" },
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/admin/users" }
+          }
+        },
+        {
+          "name": "Admin Update User",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminAccessToken}}", "type": "string" }] },
+            "method": "PUT",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Updated User\",\n  \"role\": \"user\"\n}" },
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/admin/users/{{id}}", "variable": [{ "key": "id", "value": "1" }] }
+          }
+        },
+        {
+          "name": "Admin Delete User",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminAccessToken}}", "type": "string" }] },
+            "method": "DELETE",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/admin/users/{{id}}", "variable": [{ "key": "id", "value": "1" }] }
+          }
+        },
+        {
+          "name": "Admin Get Attributes (for product form)",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminAccessToken}}", "type": "string" }] },
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/admin/get-attributes" }
+          }
+        },
+        {
+          "name": "Admin Promote Product",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminAccessToken}}", "type": "string" }] },
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"product_id\": 1,\n  \"message\": \"Limited time offer!\",\n  \"target\": \"opted_in\"\n}" },
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/admin/notifications/promote-product" }
+          }
+        },
+        {
+          "name": "Admin Broadcast Notification",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminAccessToken}}", "type": "string" }] },
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Announcement\",\n  \"message\": \"Hello users\",\n  \"link\": \"/products\",\n  \"target_user\": null,\n  \"channel\": \"promotions\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/admin/notifications/broadcast" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Attributes (Admin)",
+      "item": [
+        {
+          "name": "List Attributes",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminAccessToken}}", "type": "string" }] },
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/admin/attributes/{{type}}", "variable": [{ "key": "type", "value": "colors" }] }
+          }
+        },
+        {
+          "name": "Create Attribute",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminAccessToken}}", "type": "string" }] },
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Red\",\n  \"hex_code\": \"#ff0000\",\n  \"status\": \"active\"\n}" },
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/admin/attributes/{{type}}", "variable": [{ "key": "type", "value": "colors" }] }
+          }
+        },
+        {
+          "name": "Update Attribute",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminAccessToken}}", "type": "string" }] },
+            "method": "PUT",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Red\",\n  \"hex_code\": \"#ff0000\",\n  \"status\": \"active\"\n}" },
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/admin/attributes/{{type}}/{{id}}",
+              "variable": [
+                { "key": "type", "value": "colors" },
+                { "key": "id", "value": "1" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete Attribute",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminAccessToken}}", "type": "string" }] },
+            "method": "DELETE",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/admin/attributes/{{type}}/{{id}}",
+              "variable": [
+                { "key": "type", "value": "colors" },
+                { "key": "id", "value": "1" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Promotions",
+      "item": [
+        {
+          "name": "Active Promotions (Public)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/promotions/active" }
+          }
+        },
+        {
+          "name": "List Promotions (Admin)",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminAccessToken}}", "type": "string" }] },
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/admin/promotions" }
+          }
+        },
+        {
+          "name": "Create Promotion (Admin, multipart)",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminAccessToken}}", "type": "string" }] },
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "title", "value": "Summer Sale", "type": "text" },
+                { "key": "subtitle", "value": "Up to 50% off", "type": "text" },
+                { "key": "description", "value": "", "type": "text" },
+                { "key": "type", "value": "banner", "type": "text" },
+                { "key": "discount_percentage", "value": "50", "type": "text" },
+                { "key": "start_date", "value": "2026-01-01", "type": "text", "disabled": true },
+                { "key": "end_date", "value": "2026-01-31", "type": "text", "disabled": true },
+                { "key": "status", "value": "true", "type": "text" },
+                { "key": "order", "value": "1", "type": "text" },
+                { "key": "banner", "type": "file", "src": "", "disabled": true },
+                { "key": "product_ids[0]", "value": "1", "type": "text", "disabled": true }
+              ]
+            },
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/admin/promotions" }
+          }
+        },
+        {
+          "name": "Update Promotion (Admin, multipart; supports PUT or POST)",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminAccessToken}}", "type": "string" }] },
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "title", "value": "Summer Sale", "type": "text" },
+                { "key": "subtitle", "value": "Up to 50% off", "type": "text" },
+                { "key": "description", "value": "", "type": "text" },
+                { "key": "type", "value": "banner", "type": "text" },
+                { "key": "discount_percentage", "value": "50", "type": "text" },
+                { "key": "start_date", "value": "2026-01-01", "type": "text", "disabled": true },
+                { "key": "end_date", "value": "2026-01-31", "type": "text", "disabled": true },
+                { "key": "status", "value": "true", "type": "text" },
+                { "key": "order", "value": "1", "type": "text" },
+                { "key": "banner", "type": "file", "src": "", "disabled": true },
+                { "key": "product_ids[0]", "value": "1", "type": "text", "disabled": true }
+              ]
+            },
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/admin/promotions/{{promotion}}", "variable": [{ "key": "promotion", "value": "1" }] }
+          }
+        },
+        {
+          "name": "Delete Promotion (Admin)",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminAccessToken}}", "type": "string" }] },
+            "method": "DELETE",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/admin/promotions/{{promotion}}", "variable": [{ "key": "promotion", "value": "1" }] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Settings",
+      "item": [
+        {
+          "name": "Get Settings (Public)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/settings" }
+          }
+        },
+        {
+          "name": "Get Settings By Group (Public)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/settings/group/{{group}}", "variable": [{ "key": "group", "value": "general" }] }
+          }
+        },
+        {
+          "name": "Update Settings (Admin)",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminAccessToken}}", "type": "string" }] },
+            "method": "PUT",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"settings\": {\n    \"site_name\": \"Herd Shop\"\n  }\n}" },
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/admin/settings" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Social Auth",
+      "item": [
+        {
+          "name": "Provider Redirect URL",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/auth/{{provider}}/redirect", "variable": [{ "key": "provider", "value": "google" }] }
+          }
+        },
+        {
+          "name": "Provider Callback (issues token)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}{{apiPrefix}}/auth/{{provider}}/callback", "variable": [{ "key": "provider", "value": "google" }] }
+          }
+        }
+      ]
+    }
+  ]
+}
+
