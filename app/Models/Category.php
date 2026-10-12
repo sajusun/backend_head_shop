@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class Category extends Model
 {
@@ -13,6 +14,7 @@ class Category extends Model
         'name',
         'slug',
         'type',
+        'department',
         'parent_id',
         'description',
         'image',
@@ -37,5 +39,10 @@ class Category extends Model
     public function blogs()
     {
         return $this->hasMany(Blog::class);
+    }
+
+    public function media(): MorphMany
+    {
+        return $this->morphMany(Media::class, 'mediable');
     }
 }

@@ -7,6 +7,8 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\ProductVariant;
+use App\Models\Coupon;
+use App\Models\CouponUsage;
 use App\Traits\ApiResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -114,13 +116,37 @@ class OrderController extends Controller
                     }
                 }
 
-                $shippingCost = 0; // Can be dynamic based on city/weight
-                $tax = 0; // Can be dynamic
-                $totalAmount = $subtotal + $shippingCost + $tax;
+                // Handle Coupon if provided
+                $coupon = null;
+                $discountAmount = 0;
+                if ($request->filled('coupon_code')) {
+                    $code = strtoupper(trim($request->coupon_code));
+                    $foundCoupon = Coupon::where('code', $code)->first();
+                    if ($foundCoupon) {
+                        $validation = $foundCoupon->isValidFor($subtotal, auth('api')->id());
+                        if ($validation['valid']) {
+                            $coupon = $foundCoupon;
+                            $discountAmount = $foundCoupon->calculateDiscount($subtotal);
+                        }
+                    }
+                }
+
+                $deliveryZone = $request->input('delivery_zone', 'inside');
+                $shippingCost = $deliveryZone === 'outside' ? 120 : 60;
+                if ($coupon && $coupon->type === 'free_shipping') {
+                    $shippingCost = 0;
+                }
+
+                $tax = 0;
+                $totalAmount = max(0, round($subtotal - $discountAmount + $shippingCost + $tax, 2));
 
                 $order = Order::create([
                     'order_number' => 'ORD-' . date('Ymd') . '-' . strtoupper(Str::random(6)),
                     'user_id' => auth('api')->id(),
+                    'coupon_id' => $coupon?->id,
+                    'coupon_code' => $coupon?->code,
+                    'discount_amount' => $discountAmount,
+                    'delivery_zone' => $deliveryZone,
                     'total_amount' => $totalAmount,
                     'subtotal' => $subtotal,
                     'tax' => $tax,
@@ -136,6 +162,17 @@ class OrderController extends Controller
                     'postal_code' => $request->postal_code,
                     'notes' => $request->notes,
                 ]);
+
+                // Track coupon usage
+                if ($coupon) {
+                    $coupon->increment('used_count');
+                    CouponUsage::create([
+                        'coupon_id' => $coupon->id,
+                        'user_id' => auth('api')->id(),
+                        'order_id' => $order->id,
+                        'discount_amount' => $discountAmount,
+                    ]);
+                }
 
                 foreach ($orderItems as $item) {
                     $item['order_id'] = $order->id;

@@ -70,6 +70,54 @@ class ProductController extends Controller
                 $query->where('is_featured', $request->is_featured);
             }
 
+            // Department Filter (Men, Women, Kids, Baby, Unisex)
+            if ($request->filled('department')) {
+                $query->where('department', $request->department);
+            }
+
+            // Fit Type (Oversized, Slim Fit, Regular, Relaxed)
+            if ($request->filled('fit_type')) {
+                $query->where('fit_type', $request->fit_type);
+            }
+
+            // Fabric filter
+            if ($request->filled('fabric')) {
+                $query->where('fabric', 'like', '%' . $request->fabric . '%');
+            }
+
+            // Size Filter (by size id or slug/short code)
+            if ($request->filled('size')) {
+                $sizeVal = $request->size;
+                $query->whereHas('variants', function ($vq) use ($sizeVal) {
+                    $vq->whereHas('size', function ($sq) use ($sizeVal) {
+                        $sq->where('short', $sizeVal)
+                           ->orWhere('slug', $sizeVal)
+                           ->orWhere('id', $sizeVal);
+                    });
+                });
+            }
+
+            // Color Filter (by color id or slug)
+            if ($request->filled('color')) {
+                $colorVal = $request->color;
+                $query->whereHas('variants', function ($vq) use ($colorVal) {
+                    $vq->where('color_id', $colorVal)
+                       ->orWhereHas('color', function ($cq) use ($colorVal) {
+                           $cq->where('slug', $colorVal);
+                       });
+                });
+            }
+
+            // Stock filter
+            if ($request->boolean('in_stock')) {
+                $query->where(function ($sq) {
+                    $sq->where('stock', '>', 0)
+                       ->orWhereHas('variants', function ($vq) {
+                           $vq->where('stock', '>', 0);
+                       });
+                });
+            }
+
             if ($request->filled('status')) {
                 $query->where('status', $request->query('status'));
             }
@@ -356,6 +404,8 @@ class ProductController extends Controller
         return Product::query()
             ->with([
                 'category',
+                'sizeChart',
+                'media',
                 'primaryImage',
                 'images',
                 'amenityItems',

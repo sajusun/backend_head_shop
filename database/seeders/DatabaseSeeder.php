@@ -20,6 +20,8 @@ class DatabaseSeeder extends Seeder
             AmenitySeeder::class,
             ColorSeeder::class,
             SizeSeeder::class,
+            SizeChartSeeder::class,
+            CouponSeeder::class,
             ProductSeeder::class,
             BlogSeeder::class,
         ]);

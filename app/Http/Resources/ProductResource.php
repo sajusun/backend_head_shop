@@ -11,12 +11,20 @@ class ProductResource extends JsonResource
     {
         return [
             'id' => $this->id,
+            'department' => $this->department ?? 'unisex',
             'name' => $this->name,
             'slug' => $this->slug,
             'sku' => $this->sku,
             'thumbnail' => $this->thumbnail,
 
             'description' => $this->description,
+            'fabric' => $this->fabric,
+            'gsm' => $this->gsm,
+            'fit_type' => $this->fit_type,
+            'care_instructions' => $this->care_instructions ?? [],
+            'model_info' => $this->model_info ?? null,
+            'size_chart' => $this->whenLoaded('sizeChart'),
+
             'price' => (float) $this->price,
             'offer_price' => $this->calculateOfferPrice(),
             'effective_price' => (float) ($this->calculateOfferPrice() ?? $this->price),
@@ -43,6 +51,12 @@ class ProductResource extends JsonResource
                 'id' => $this->primaryImage->id,
                 'image_path' => asset('storage/' . $this->primaryImage->path),
             ] : null,
+            'media' => $this->whenLoaded('media', fn () => $this->media->map(fn ($m) => [
+                'id' => $m->id,
+                'collection' => $m->collection_name,
+                'url' => $m->url,
+                'variants' => $m->variants,
+            ])),
             'rating' => [
                 'average' => round((float) ($this->approved_reviews_avg_rating ?? 0), 2),
                 'count' => (int) ($this->approved_reviews_count ?? 0),
@@ -58,6 +72,16 @@ class ProductResource extends JsonResource
                 ? AmenityResource::collection($this->amenityItems)
                 : ($this->amenities ?? []),
             'reviews' => ReviewResource::collection($this->whenLoaded('approvedReviews')),
+            'outfit_products' => $this->relationLoaded('outfit_products') || !empty($this->outfit_product_ids)
+                ? $this->outfit_products->map(fn ($op) => [
+                    'id' => $op->id,
+                    'name' => $op->name,
+                    'slug' => $op->slug,
+                    'price' => (float) $op->price,
+                    'offer_price' => (float) ($op->offer_price ?? $op->price),
+                    'thumbnail' => $op->thumbnail,
+                ])
+                : [],
         ];
     }
 
@@ -83,17 +107,5 @@ class ProductResource extends JsonResource
         }
 
         return null;
-    }
-
-    private function thumbnailPath(): ?string
-    {
-        $path = $this->thumbnail;
-
-        // Fallback to primary image from gallery if thumbnail column is empty
-        if (!$path && $this->relationLoaded('primaryImage')) {
-            $path = $this->primaryImage?->path;
-        }
-
-        return $path ? asset('storage/' . $path) : null;
     }
 }

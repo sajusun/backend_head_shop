@@ -12,6 +12,10 @@ class Order extends Model
     protected $fillable = [
         'order_number',
         'user_id',
+        'coupon_id',
+        'coupon_code',
+        'discount_amount',
+        'delivery_zone',
         'total_amount',
         'subtotal',
         'tax',
@@ -28,9 +32,22 @@ class Order extends Model
         'notes',
     ];
 
+    protected $casts = [
+        'total_amount' => 'decimal:2',
+        'subtotal' => 'decimal:2',
+        'tax' => 'decimal:2',
+        'shipping_cost' => 'decimal:2',
+        'discount_amount' => 'decimal:2',
+    ];
+
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function coupon()
+    {
+        return $this->belongsTo(Coupon::class);
     }
 
     public function items()

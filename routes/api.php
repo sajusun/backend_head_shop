@@ -22,6 +22,8 @@ use App\Http\Controllers\Api\UserPreferenceController;
 use App\Http\Controllers\SocialAuthController;
 use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\PromotionController;
+use App\Http\Controllers\Api\MediaController;
+use App\Http\Controllers\Api\CouponController;
 
 // User Authentication Routes
 Route::group(['middleware' => 'api', 'prefix' => 'auth'], function ($router) {
@@ -67,8 +69,14 @@ Route::get('categories', [CategoryController::class, 'index']);
 Route::get('categories/{id}', [CategoryController::class, 'show']);
 Route::get('products', [ProductController::class, 'index']);
 Route::get('products/{slug}', [ProductController::class, 'showBySlug']);
-Route::get('reviews/{productId}', [ReviewController::class, 'index']);
 Route::get('promotions/active', [PromotionController::class, 'active']);
+
+// Media upload API (WebP auto conversion)
+Route::post('media/upload', [MediaController::class, 'upload']);
+
+// Public Coupon APIs
+Route::get('coupons/public', [CouponController::class, 'publicCoupons']);
+Route::post('coupons/apply', [CouponController::class, 'apply']);
 
 
 Route::group(['middleware' => ['auth:api', 'admin']], function() {
@@ -176,6 +184,17 @@ Route::group(['prefix' => 'admin', 'middleware' => ['auth:api', 'admin']], funct
     Route::post('/promotions', [PromotionController::class, 'store']);
     Route::match(['put', 'post'], '/promotions/{promotion}', [PromotionController::class, 'update']);
     Route::delete('/promotions/{promotion}', [PromotionController::class, 'destroy']);
+
+    // Media Library Management (Admin)
+    Route::get('/media', [MediaController::class, 'index']);
+    Route::post('/media/upload', [MediaController::class, 'upload']);
+    Route::delete('/media/{id}', [MediaController::class, 'destroy']);
+
+    // Coupon Management (Admin)
+    Route::get('/coupons', [CouponController::class, 'index']);
+    Route::post('/coupons', [CouponController::class, 'store']);
+    Route::put('/coupons/{id}', [CouponController::class, 'update']);
+    Route::delete('/coupons/{id}', [CouponController::class, 'destroy']);
 });
 
 // Settings API (Public)
