@@ -68,6 +68,7 @@ Route::match(['get', 'post'], '/payments/callback/{gateway}/{status}', [PaymentC
 Route::get('categories', [CategoryController::class, 'index']);
 Route::get('categories/{id}', [CategoryController::class, 'show']);
 Route::get('products', [ProductController::class, 'index']);
+Route::get('products/filters', [ProductController::class, 'filters']);
 Route::get('products/{slug}', [ProductController::class, 'showBySlug']);
 Route::get('promotions/active', [PromotionController::class, 'active']);
 

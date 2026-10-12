@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Category;
+use App\Http\Resources\CategoryResource;
 use App\Traits\ApiResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -13,6 +14,7 @@ use Illuminate\Support\Facades\Validator;
 class CategoryController extends Controller
 {
     use ApiResponse;
+
     /**
      * Display a listing of the resource.
      */
@@ -20,13 +22,25 @@ class CategoryController extends Controller
     {
         try {
             $type = $request->query('type', 'product');
-            $categories = Category::with('children')
-                ->where('type', $type)
-                ->whereNull('parent_id')
-                ->latest()
-                ->paginate($request->query('per_page', 20));
-            
-            return $this->success('Successfully retrieve', $categories->items(), true, $categories);
+            $query = Category::where('type', $type);
+
+            if ($request->filled('department')) {
+                $query->where('department', $request->department);
+            }
+
+            if ($request->filled('status')) {
+                $query->where('status', $request->status);
+            }
+
+            $perPage = $request->query('per_page', 100);
+            $categories = $query->latest()->paginate($perPage);
+
+            return $this->success(
+                'Successfully retrieve',
+                CategoryResource::collection($categories->items())->resolve($request),
+                true,
+                $categories
+            );
         } catch (\Throwable $th) {
             Log::info($th->getMessage());
             return $this->error('Somethings Went Wrong', 500);
@@ -40,6 +54,7 @@ class CategoryController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
+            'department' => 'nullable|in:men,women,kids,baby,unisex',
             'type' => 'in:product,blog',
             'parent_id' => 'nullable|exists:categories,id',
             'description' => 'nullable|string',
@@ -54,6 +69,9 @@ class CategoryController extends Controller
         try {
             $data = $validator->validated();
             $data['slug'] = Str::slug($data['name']);
+            if (empty($data['department'])) {
+                $data['department'] = 'unisex';
+            }
 
             // Ensure slug uniqueness
             $count = Category::where('slug', 'like', $data['slug'] . '%')->count();
@@ -63,7 +81,7 @@ class CategoryController extends Controller
 
             $category = Category::create($data);
 
-            return $this->success('Category created successfully', $category, false, null, true, 201);
+            return $this->success('Category created successfully', new CategoryResource($category), false, null, true, 201);
         } catch (\Throwable $th) {
             Log::info($th->getMessage());
             return $this->error('Somethings Went Wrong', 500);
@@ -77,7 +95,7 @@ class CategoryController extends Controller
     {
         try {
             $category = Category::with(['children', 'products'])->findOrFail($id);
-            return $this->success('Successfully retrieve', $category);
+            return $this->success('Successfully retrieve', new CategoryResource($category));
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return $this->error('Category not found', 404);
         } catch (\Throwable $th) {
@@ -96,6 +114,7 @@ class CategoryController extends Controller
 
             $validator = Validator::make($request->all(), [
                 'name' => 'string|max:255',
+                'department' => 'nullable|in:men,women,kids,baby,unisex',
                 'type' => 'in:product,blog',
                 'parent_id' => 'nullable|exists:categories,id',
                 'description' => 'nullable|string',
@@ -114,7 +133,7 @@ class CategoryController extends Controller
 
             $category->update($data);
 
-            return $this->success('Category updated successfully', $category);
+            return $this->success('Category updated successfully', new CategoryResource($category));
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return $this->error('Category not found', 404);
         } catch (\Throwable $th) {

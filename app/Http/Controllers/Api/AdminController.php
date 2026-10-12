@@ -307,10 +307,19 @@ class AdminController extends Controller
     {
         try {
             $data = [
-                'colors'     => Color::where('status', 'active')->get(),
-                'sizes'      => Size::where('status', 'active')->get(),
-                'amenities'  => Amenity::where('status', 'active')->get(),
-                'categories' => Category::where('status', 'active')->where('type', 'product')->get(),
+                'colors'      => Color::where('status', 'active')->get(),
+                'sizes'       => Size::where('status', 'active')->get(),
+                'amenities'   => Amenity::where('status', 'active')->get(),
+                'categories'  => Category::where('status', 'active')->where('type', 'product')->get(),
+                'departments' => [
+                    ['label' => 'Men', 'value' => 'men'],
+                    ['label' => 'Women', 'value' => 'women'],
+                    ['label' => 'Kids (2-14Y)', 'value' => 'kids'],
+                    ['label' => 'Baby (0-24M)', 'value' => 'baby'],
+                    ['label' => 'Unisex / General', 'value' => 'unisex'],
+                ],
+                'fit_types'   => ['Regular', 'Slim Fit', 'Oversized', 'Relaxed', 'Boxy', 'Loose', 'Athletic'],
+                'size_charts' => \App\Models\SizeChart::where('status', 'active')->select('id', 'name', 'category_type')->get(),
             ];
             return $this->success('Successfully retrieve', $data);
         } catch (\Throwable $th) {

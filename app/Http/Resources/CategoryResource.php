@@ -13,7 +13,12 @@ class CategoryResource extends JsonResource
             'id' => $this->id,
             'name' => $this->name,
             'slug' => $this->slug,
+            'department' => $this->department ?? 'unisex',
             'type' => $this->type,
+            'description' => $this->description,
+            'image' => $this->image,
+            'status' => $this->status,
+            'parent_id' => $this->parent_id,
         ];
     }
 }

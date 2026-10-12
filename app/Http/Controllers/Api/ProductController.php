@@ -418,4 +418,103 @@ class ProductController extends Controller
             ->withCount('approvedReviews')
             ->withAvg('approvedReviews', 'rating');
     }
+
+    /**
+     * Get dynamic catalog filters metadata for storefront
+     */
+    public function filters()
+    {
+        $cacheKey = 'catalog_filters_metadata';
+
+        $filters = \Illuminate\Support\Facades\Cache::remember($cacheKey, 600, function () {
+            $departments = [
+                ['label' => 'All Apparel', 'value' => ''],
+                ['label' => "Men's", 'value' => 'men'],
+                ['label' => "Women's", 'value' => 'women'],
+                ['label' => "Kids (2-14Y)", 'value' => 'kids'],
+                ['label' => "Baby (0-24M)", 'value' => 'baby'],
+                ['label' => 'Unisex', 'value' => 'unisex'],
+            ];
+
+            $categories = \App\Models\Category::where('status', 'active')
+                ->select('id', 'name', 'slug', 'department', 'image')
+                ->withCount(['products' => function ($q) {
+                    $q->where('status', 'published');
+                }])
+                ->orderBy('name')
+                ->get();
+
+            $fitTypes = Product::where('status', 'published')
+                ->whereNotNull('fit_type')
+                ->where('fit_type', '!=', '')
+                ->distinct()
+                ->pluck('fit_type')
+                ->filter()
+                ->values();
+
+            if ($fitTypes->isEmpty()) {
+                $fitTypes = collect(['Regular', 'Slim Fit', 'Oversized', 'Relaxed']);
+            }
+
+            $fabrics = Product::where('status', 'published')
+                ->whereNotNull('fabric')
+                ->where('fabric', '!=', '')
+                ->distinct()
+                ->pluck('fabric')
+                ->filter()
+                ->values();
+
+            $sizes = \App\Models\Size::where('status', 'active')
+                ->whereHas('variants', function ($q) {
+                    $q->where('stock', '>', 0)
+                      ->whereHas('product', function ($pq) {
+                          $pq->where('status', 'published');
+                      });
+                })
+                ->select('id', 'name', 'slug', 'short')
+                ->get();
+
+            if ($sizes->isEmpty()) {
+                $sizes = \App\Models\Size::where('status', 'active')->select('id', 'name', 'slug', 'short')->get();
+            }
+
+            $colors = \App\Models\Color::where('status', 'active')
+                ->whereHas('variants', function ($q) {
+                    $q->where('stock', '>', 0);
+                })
+                ->select('id', 'name', 'hex_code')
+                ->get();
+
+            if ($colors->isEmpty()) {
+                $colors = \App\Models\Color::where('status', 'active')->select('id', 'name', 'hex_code')->get();
+            }
+
+            $minPrice = (float) (Product::where('status', 'published')->min('price') ?? 0);
+            $maxPrice = (float) (Product::where('status', 'published')->max('price') ?? 5000);
+
+            $sortOptions = [
+                ['label' => 'Latest Arrivals', 'value' => 'latest'],
+                ['label' => 'Trending & Popular', 'value' => 'trending'],
+                ['label' => 'Price: Low to High', 'value' => 'price_low'],
+                ['label' => 'Price: High to Low', 'value' => 'price_high'],
+            ];
+
+            return [
+                'departments' => $departments,
+                'categories' => $categories,
+                'fit_types' => $fitTypes,
+                'fabrics' => $fabrics,
+                'sizes' => $sizes,
+                'colors' => $colors,
+                'price_range' => [
+                    'min' => $minPrice,
+                    'max' => $maxPrice,
+                ],
+                'sort_options' => $sortOptions,
+            ];
+        });
+
+        return $this->success('Catalog filters retrieved successfully', $filters);
+    }
 }
+
